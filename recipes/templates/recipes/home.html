@@ -3,31 +3,37 @@
 <html>
   <head>
     <title>Home</title>
-    <link
-      href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <style>
+      .card-img-top {
+        width: 100%;
+        height: 15vw;
+        object-fit: cover;
+      }
+    </style>
   </head>
   <body>
     <div class="container py-5">
-      <h1>Latest Recipes</h1>
-      {% for recipe in recipes %}
-      <div class="card my-3">
-        <div class="card-body">
-          <h5 class="card-title">{{ recipe.title }}</h5>
-          {% if recipe.image %}
-          <img
-            src="{{ recipe.image.url }}"
-            alt="{{ recipe.title }}"
-            class="img-fluid mx-auto d-block"
-          />
-          {% endif %}
-          <a href="{% url 'recipe_uncounted_view' recipe_slug=recipe.slug %}" class="btn btn-primary">Read More</a>
+      <h1 class="mb-5">Latest Recipes</h1>
+      <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for recipe in recipes %}
+        <div class="col">
+          <div class="card h-100">
+            {% if recipe.image %}
+            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="card-img-top" />
+            {% endif %}
+            <div class="card-body">
+              <h5 class="card-title">{{ recipe.title }}</h5>
+            </div>
+            <div class="card-footer">
+              <a href="{% url 'recipe_uncounted_view' recipe_slug=recipe.slug %}" class="btn btn-primary">Read More</a>
+            </div>
+          </div>
         </div>
+        {% empty %}
+        <p>No recipes yet.</p>
+        {% endfor %}
       </div>
-      {% empty %}
-      <p>No recipes yet.</p>
-      {% endfor %}
     </div>
   </body>
 </html>
