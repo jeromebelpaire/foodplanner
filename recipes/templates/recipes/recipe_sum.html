@@ -8,22 +8,68 @@
       integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
       crossorigin="anonymous"
     />
+    <script
+      src="https://code.jquery.com/jquery-3.7.0.min.js"
+      integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <div class="container py-5">
-      <form method="post">
+      <form id="recipe-form" method="post">
         {% csrf_token %} {{ form.as_p }}
+        <div id="guests"></div>
         <button type="submit" class="btn btn-primary">Submit</button>
       </form>
-      {% if ingredients %}
       <h2 class="my-5">Ingredients</h2>
-      <ul class="list-group">
-        {% for ingredient in ingredients %}
-        <li class="list-group-item">{{ ingredient.name }}: {{ ingredient.quantity }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
+      <ul id="ingredients" class="list-group"></ul>
     </div>
+    <script>
+      $(document).ready(function () {
+        // Keep track of ingredients and their quantities
+        var ingredients = {};
+
+        $("#id_recipes").change(function () {
+          var selectedRecipes = $(this).children("option:selected").length;
+          $("#guests").empty();
+          for (i = 0; i < selectedRecipes; i++) {
+            $("#guests").append(
+              '<input type="number" name="guests" min="1" class="form-control my-2" placeholder="Number of guests for recipe ' +
+                (i + 1) +
+                '">'
+            );
+          }
+        });
+
+        $("#recipe-form").submit(function (e) {
+          e.preventDefault();
+          var form_data = $(this).serialize();
+          $.ajax({
+            url: "{% url 'recipe_sum_view' %}",
+            method: "POST",
+            data: form_data,
+            success: function (data) {
+              // Update ingredients with new quantities
+              data.forEach(function (item) {
+                if (item.name in ingredients) {
+                  ingredients[item.name] += item.quantity;
+                } else {
+                  ingredients[item.name] = item.quantity;
+                }
+              });
+
+              // Update ingredient list
+              $("#ingredients").empty();
+              for (var name in ingredients) {
+                $("#ingredients").append(
+                  '<li class="list-group-item">' + name + ": " + ingredients[name] + "</li>"
+                );
+              }
+            },
+          });
+        });
+      });
+    </script>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"

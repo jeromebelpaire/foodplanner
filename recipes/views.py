@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .forms import RecipeForm
@@ -29,19 +30,15 @@ def recipe_sum_view(request):
     if request.method == "POST":
         form = RecipeForm(request.POST)
         if form.is_valid():
-            recipe = form.cleaned_data["recipe"]
-            guests = form.cleaned_data["guests"]
-            ingredients = Ingredient.objects.filter(recipe=recipe)
-            scaled_ingredients = []
-            for ingredient in ingredients:
-                scaled_ingredients.append(
-                    {"name": ingredient.name, "quantity": ingredient.quantity * guests}
-                )
-            return render(
-                request,
-                "recipes/recipe_sum.html",
-                {"form": form, "ingredients": scaled_ingredients},
-            )
+            recipes = form.cleaned_data["recipes"]
+            guests = request.POST.getlist("guests")
+            ingredient_list = []
+            for index, recipe in enumerate(recipes):
+                ingredients = Ingredient.objects.filter(recipe=recipe)
+                for ingredient in ingredients:
+                    quantity = ingredient.quantity * int(guests[index])
+                    ingredient_list.append({"name": ingredient.name, "quantity": quantity})
+            return JsonResponse(ingredient_list, safe=False)
 
     form = RecipeForm()
     return render(request, "recipes/recipe_sum.html", {"form": form})
