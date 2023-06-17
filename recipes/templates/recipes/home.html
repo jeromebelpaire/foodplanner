@@ -1,0 +1,33 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Home</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container py-5">
+      <h1>Latest Recipes</h1>
+      {% for recipe in recipes %}
+      <div class="card my-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ recipe.title }}</h5>
+          {% if recipe.image %}
+          <img
+            src="{{ recipe.image.url }}"
+            alt="{{ recipe.title }}"
+            class="img-fluid mx-auto d-block"
+          />
+          {% endif %}
+          <a href="{% url 'recipe_uncounted_view' recipe_slug=recipe.slug %}" class="btn btn-primary">Read More</a>
+        </div>
+      </div>
+      {% empty %}
+      <p>No recipes yet.</p>
+      {% endfor %}
+    </div>
+  </body>
+</html>
