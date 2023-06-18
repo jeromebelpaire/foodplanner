@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
 
 from .forms import RecipeForm
-from .models import Ingredient, Recipe, GroceryList
+from .models import Ingredient, Recipe, GroceryListItem
 
 
 def home_view(request):
@@ -54,14 +54,14 @@ def save_grocery_list(request):
 
         for recipe_id, guests in zip(data.getlist("recipes"), data.getlist("guests")):
             recipe = Recipe.objects.get(pk=recipe_id)
-            GroceryList.objects.create(user=request.user, recipe=recipe, guests=guests)
+            GroceryListItem.objects.create(user=request.user, recipe=recipe, guests=guests)
 
         return JsonResponse({"success": True})
 
 
 @login_required
 def get_grocery_list(request):
-    grocery_lists = GroceryList.objects.filter(user=request.user)
+    grocery_lists = GroceryListItem.objects.filter(user=request.user)
     ingredients = {}
 
     # Iterate over all grocery lists
