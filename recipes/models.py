@@ -25,3 +25,17 @@ class Ingredient(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class GroceryList(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="grocery_lists")
+    guests = models.IntegerField()
+
+    class Meta:
+        get_latest_by = "timestamp"
+
+    def __str__(self):
+        return f"{self.recipe.title} - {self.guests} guests"

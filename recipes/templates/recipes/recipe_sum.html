@@ -26,9 +26,6 @@
     </div>
     <script>
       $(document).ready(function () {
-        // Keep track of ingredients and their quantities
-        var ingredients = {};
-
         $("#id_recipes").change(function () {
           var selectedRecipes = $(this).children("option:selected").length;
           $("#guests").empty();
@@ -45,25 +42,24 @@
           e.preventDefault();
           var form_data = $(this).serialize();
           $.ajax({
-            url: "{% url 'recipe_sum_view' %}",
+            url: "{% url 'save_grocery_list' %}",
             method: "POST",
             data: form_data,
             success: function (data) {
-              // Update ingredients with new quantities
-              data.forEach(function (item) {
-                if (item.name in ingredients) {
-                  ingredients[item.name] += item.quantity;
-                } else {
-                  ingredients[item.name] = item.quantity;
-                }
-              });
-
-              // Update ingredient list
-              $("#ingredients").empty();
-              for (var name in ingredients) {
-                $("#ingredients").append(
-                  '<li class="list-group-item">' + name + ": " + ingredients[name] + "</li>"
-                );
+              if(data.success){
+                $.ajax({
+                  url: "{% url 'get_grocery_list' %}",
+                  method: "GET",
+                  success: function (data) {
+                    console.log(data);
+                    $("#ingredients").empty();
+                    for (var name in data) {
+                      $("#ingredients").append(
+                        '<li class="list-group-item">' + name + ": " + data[name] + "</li>"
+                      );
+                    }
+                  },
+                });
               }
             },
           });

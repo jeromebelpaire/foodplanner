@@ -460,3 +460,4 @@ __pycache__/
 *.pyc
 
 /media/
+test_query.py
