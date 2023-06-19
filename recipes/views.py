@@ -1,23 +1,11 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.shortcuts import HttpResponse, get_object_or_404, render
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 
 from .forms import GroceryListForm, RecipeForm
 from .models import GroceryList, PlannedRecipe, Ingredient, Recipe
-
-
-def is_ajax(request):
-    return request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
-
-
-def ajax_test(request):
-    if is_ajax(request=request):
-        message = "This is ajax"
-    else:
-        message = "Not ajax"
-    return HttpResponse(message)
 
 
 def home_view(request):
