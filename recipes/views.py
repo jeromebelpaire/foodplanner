@@ -100,7 +100,7 @@ def recipe_sum_view(request):
 
 @login_required
 @csrf_exempt
-def save_grocery_list(request):
+def save_planned_recipe(request):
     if request.method == "POST":
         data = request.POST
 
@@ -118,7 +118,7 @@ def save_grocery_list(request):
 
 
 @login_required
-def get_grocery_list(request, grocery_list_id=None):
+def get_planned_ingredients(request, grocery_list_id=None):
     if grocery_list_id:
         grocery_list = GroceryList.objects.get(id=grocery_list_id)
     else:

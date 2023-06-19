@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
   <head>
@@ -13,15 +14,16 @@
       integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
       crossorigin="anonymous"
     ></script>
+    <script></script>
   </head>
   <body>
     <div class="container py-5">
       <form id="grocery-list-form" method="post">
-          {% csrf_token %}
-          {{ grocery_list_form.as_p }}
-          <button type="submit" class="btn btn-primary">Select</button>
+        {% csrf_token %} {{ grocery_list_form.as_p }}
+        <button type="submit" class="btn btn-primary">Select</button>
       </form>
       <form id="recipe-form" method="post">
+        <p>Please select and submit a grocery list first</p>
         {% include 'recipes/recipe_form.html' %}
       </form>
       <h2 class="my-5">Ingredients</h2>
@@ -29,52 +31,30 @@
     </div>
     <script>
       $(document).ready(function () {
-        console.log("READY");
-        $("#id_recipes").change(function () {
-          console.log("CHAANGE");
-          var selectedRecipes = $(this).children("option:selected").length;
-          $("#guests").empty();
-          for (i = 0; i < selectedRecipes; i++) {
-            $("#guests").append(
-              '<input type="number" name="guests" min="1" class="form-control my-2" placeholder="Number of guests for recipe ' +
-                (i + 1) +
-                '">'
-            );
-          }
-        });
-
         $("#recipe-form").submit(function (e) {
           e.preventDefault();
           var form_data1 = $(this).serializeArray();
-          var form_data_grocery_list = $('#grocery-list-form').serializeArray();
+          var form_data_grocery_list = $("#grocery-list-form").serializeArray();
 
-          var groceryList = form_data_grocery_list.find(function(item) {
-            return item.name === 'grocery_list';
+          var groceryList = form_data_grocery_list.find(function (item) {
+            return item.name === "grocery_list";
           });
 
           if (groceryList) {
             form_data1.push(groceryList);
           }
-          // Changed from console.log(form_data); to console.log(form_data1);
-          console.log(form_data1);
-          // Changed from var form_data = $.param(formData1); to var form_data = $.param(form_data1);
           var form_data = $.param(form_data1);
           $.ajax({
-            url: "{% url 'save_grocery_list' %}",
+            url: "{% url 'save_planned_recipe' %}",
             method: "POST",
             data: form_data,
             success: function (data) {
-              if(data.success){
+              if (data.success) {
                 $.ajax({
-                  url: "{% url 'get_grocery_list' %}",
+                  url: "{% url 'get_planned_ingredients' %}",
                   method: "GET",
                   success: function (data) {
-                    $("#ingredients").empty();
-                    for (var name in data) {
-                      $("#ingredients").append(
-                        '<li class="list-group-item">' + name + ": " + data[name] + "</li>"
-                      );
-                    }
+                    update_ingredients_list(data);
                   },
                 });
               }
@@ -83,30 +63,16 @@
         });
 
         $("#grocery-list-form").submit(function (e) {
-            e.preventDefault();
-            var form_data = $(this).serialize();
-            $.ajax({
-                url: "{% url 'recipe_sum_view' %}",
-                method: "POST",
-                data: form_data,
-                success: function (data) {
-                    // Update the recipe form HTML
-                    $("#recipe-form").html(data.recipe_form_html);
-                    console.log("READY");
-                    $("#id_recipes").change(function () {
-                      console.log("CHAANGE");
-                      var selectedRecipes = $(this).children("option:selected").length;
-                      $("#guests").empty();
-                      for (i = 0; i < selectedRecipes; i++) {
-                        $("#guests").append(
-                          '<input type="number" name="guests" min="1" class="form-control my-2" placeholder="Number of guests for recipe ' +
-                            (i + 1) +
-                            '">'
-                        );
-                      }
-                    });
-                },
-            });
+          e.preventDefault();
+          var form_data = $(this).serialize();
+          $.ajax({
+            url: "{% url 'recipe_sum_view' %}",
+            method: "POST",
+            data: form_data,
+            success: function (data) {
+              generate_recipe_select_form(data);
+            },
+          });
         });
       });
     </script>
@@ -115,5 +81,7 @@
       integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
       crossorigin="anonymous"
     ></script>
+    <script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
+    <script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>
   </body>
 </html>
