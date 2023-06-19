@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 
 from .forms import GroceryListForm, RecipeForm
-from .models import GroceryList, GroceryListItem, Ingredient, Recipe
+from .models import GroceryList, PlannedRecipe, Ingredient, Recipe
 
 
 def is_ajax(request):
@@ -74,16 +74,16 @@ def recipe_sum_view(request):
                 ingredients = Ingredient.objects.filter(recipe=recipe)
                 for ingredient in ingredients:
                     quantity = ingredient.quantity * int(guests[index])
-                    GroceryListItem.objects.create(
+                    PlannedRecipe.objects.create(
                         grocery_list=selected_grocery_list, recipe=recipe, guests=int(guests[index])
                     )
 
             # Now retrieve all ingredients from the selected grocery list
-            grocery_list_items = GroceryListItem.objects.filter(grocery_list=selected_grocery_list)
+            planned_recipes = PlannedRecipe.objects.filter(grocery_list=selected_grocery_list)
             ingredients = {}
-            for grocery_list_item in grocery_list_items:
-                for ingredient in grocery_list_item.recipe.ingredients.all():
-                    quantity = ingredient.quantity * grocery_list_item.guests
+            for planned_recipe in planned_recipes:
+                for ingredient in planned_recipe.recipe.ingredients.all():
+                    quantity = ingredient.quantity * planned_recipe.guests
                     if ingredient.name in ingredients:
                         ingredients[ingredient.name] += quantity
                     else:
@@ -110,7 +110,7 @@ def save_grocery_list(request):
             data.getlist("guests"),
         ):
             recipe = Recipe.objects.get(pk=recipe_id)
-            GroceryListItem.objects.create(
+            PlannedRecipe.objects.create(
                 grocery_list_id=grocery_list_id, recipe=recipe, guests=guests
             )
 
@@ -124,7 +124,7 @@ def get_grocery_list(request, grocery_list_id=None):
     else:
         grocery_list, created = GroceryList.objects.get_or_create(user=request.user)
 
-    grocery_list_items = GroceryListItem.objects.filter(grocery_list=grocery_list)
+    grocery_list_items = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     ingredients = {}
 
     # Iterate over all grocery lists

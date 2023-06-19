@@ -37,7 +37,7 @@ class GroceryList(models.Model):
         ordering = ["-created_at"]
 
 
-class GroceryListItem(models.Model):
+class PlannedRecipe(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     grocery_list = models.ForeignKey(GroceryList, related_name="items", on_delete=models.CASCADE)
