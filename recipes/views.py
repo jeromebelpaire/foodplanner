@@ -76,10 +76,7 @@ def save_planned_recipe(request):
 
 @login_required
 def get_planned_ingredients(request, grocery_list_id=None):
-    if grocery_list_id:
-        grocery_list = GroceryList.objects.get(id=grocery_list_id)
-    else:
-        grocery_list, created = GroceryList.objects.get_or_create(user=request.user)
+    grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
     grocery_list_items = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     ingredients = {}
