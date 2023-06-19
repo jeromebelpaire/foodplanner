@@ -8,4 +8,9 @@ urlpatterns = [
     path("recipe_sum/", views.recipe_sum_view, name="recipe_sum_view"),
     path("save_planned_recipe/", views.save_planned_recipe, name="save_planned_recipe"),
     path("get_planned_ingredients/", views.get_planned_ingredients, name="get_planned_ingredients"),
+    path(
+        "generate_recipe_select_form/",
+        views.generate_recipe_select_form,
+        name="generate_recipe_select_form",
+    ),
 ]
