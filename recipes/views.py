@@ -29,6 +29,18 @@ def recipe_view(request, recipe_slug, guests=1):
     return render(request, "recipes/recipe.html", context)
 
 
+@login_required
+@csrf_exempt
+def create_grocery_list(request):
+    if request.method == "POST":
+        name = request.POST.get("name")
+        grocery_list = GroceryList(name=name, user=request.user)
+        grocery_list.save()
+        return JsonResponse({"message": "Grocery list created successfully!"}, status=201)
+    else:
+        return JsonResponse({"error": "Invalid request"}, status=400)
+
+
 def generate_recipe_select_form(request):
     if "grocery_list" in request.POST:
         grocery_list_id = request.POST.get("grocery_list")

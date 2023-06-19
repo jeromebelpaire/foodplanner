@@ -14,13 +14,18 @@
       integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
       crossorigin="anonymous"
     ></script>
-    <script></script>
   </head>
   <body>
     <div class="container py-5">
-      <form id="grocery-list-form" method="post">
+      <form id="create-grocery-list-form" method="post">
+        {% csrf_token %}
+        <label for="name">Name:</label><br />
+        <input type="text" id="name" name="name" required /><br />
+        <input type="submit" class="btn btn-primary" value="Create New List" />
+      </form>
+      <form id="grocery-list-form" class="my-2" method="post">
         {% csrf_token %} {{ grocery_list_form.as_p }}
-        <button type="submit" class="btn btn-primary">Select</button>
+        <button type="submit" class="btn btn-primary">Select Existing</button>
       </form>
       <form id="recipe-form" method="post">
         <p>Please select and submit a grocery list first</p>
@@ -31,6 +36,23 @@
     </div>
     <script>
       $(document).ready(function () {
+        $("#create-grocery-list-form").submit(function (e) {
+          e.preventDefault();
+
+          $.ajax({
+            url: "{% url 'create_grocery_list' %}",
+            type: "POST",
+            data: {
+              name: $("#name").val(),
+              csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken]").val(),
+            },
+            success: function (response) {
+              alert("Grocery list created successfully!");
+              location.reload();
+            },
+          });
+        });
+
         $("#recipe-form").submit(function (e) {
           e.preventDefault();
           var form_data1 = $(this).serializeArray();
