@@ -1,10 +1,23 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import HttpResponse, get_object_or_404, render
+from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 
-from .forms import RecipeForm
-from .models import Ingredient, Recipe, GroceryListItem
+from .forms import GroceryListForm, RecipeForm
+from .models import GroceryList, GroceryListItem, Ingredient, Recipe
+
+
+def is_ajax(request):
+    return request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
+
+
+def ajax_test(request):
+    if is_ajax(request=request):
+        message = "This is ajax"
+    else:
+        message = "Not ajax"
+    return HttpResponse(message)
 
 
 def home_view(request):
@@ -29,21 +42,60 @@ def recipe_view(request, recipe_slug, guests=1):
 
 
 def recipe_sum_view(request):
+    if is_ajax(request):
+        if "grocery_list" in request.POST:
+            grocery_list_id = request.POST.get("grocery_list")
+            grocery_list = GroceryList.objects.get(id=grocery_list_id)
+            # Create a new RecipeForm populated with the recipes from the selected grocery list
+            recipe_form = RecipeForm(initial={"recipes": Recipe.objects.all()})
+            recipe_form_html = render_to_string(
+                "recipes/recipe_form.html", {"form": recipe_form}, request=request
+            )
+            return JsonResponse({"recipe_form_html": recipe_form_html})
+
+    # First, initialize both forms
+    grocery_list_form = GroceryListForm(user=request.user)
+    recipe_form = RecipeForm()
+
+    # If this is a POST request, validate and process the forms
     if request.method == "POST":
-        form = RecipeForm(request.POST)
-        if form.is_valid():
-            recipes = form.cleaned_data["recipes"]
+        grocery_list_form = GroceryListForm(request.POST, user=request.user)
+        recipe_form = RecipeForm(request.POST)
+
+        if grocery_list_form.is_valid() and recipe_form.is_valid():
+            selected_grocery_list = grocery_list_form.cleaned_data["grocery_list"]
+            selected_recipes = recipe_form.cleaned_data["recipes"]
+
+            # Assuming 'guests' is an input field from the RecipeForm
             guests = request.POST.getlist("guests")
-            ingredient_list = []
-            for index, recipe in enumerate(recipes):
+
+            # Add the selected recipes to the grocery list
+            for index, recipe in enumerate(selected_recipes):
                 ingredients = Ingredient.objects.filter(recipe=recipe)
                 for ingredient in ingredients:
                     quantity = ingredient.quantity * int(guests[index])
-                    ingredient_list.append({"name": ingredient.name, "quantity": quantity})
-            return JsonResponse(ingredient_list, safe=False)
+                    GroceryListItem.objects.create(
+                        grocery_list=selected_grocery_list, recipe=recipe, guests=int(guests[index])
+                    )
 
-    form = RecipeForm()
-    return render(request, "recipes/recipe_sum.html", {"form": form})
+            # Now retrieve all ingredients from the selected grocery list
+            grocery_list_items = GroceryListItem.objects.filter(grocery_list=selected_grocery_list)
+            ingredients = {}
+            for grocery_list_item in grocery_list_items:
+                for ingredient in grocery_list_item.recipe.ingredients.all():
+                    quantity = ingredient.quantity * grocery_list_item.guests
+                    if ingredient.name in ingredients:
+                        ingredients[ingredient.name] += quantity
+                    else:
+                        ingredients[ingredient.name] = quantity
+
+            return JsonResponse(ingredients, safe=False)
+
+    return render(
+        request,
+        "recipes/recipe_sum.html",
+        {"grocery_list_form": grocery_list_form, "recipe_form": recipe_form},
+    )
 
 
 @login_required
@@ -52,22 +104,33 @@ def save_grocery_list(request):
     if request.method == "POST":
         data = request.POST
 
-        for recipe_id, guests in zip(data.getlist("recipes"), data.getlist("guests")):
+        for grocery_list_id, recipe_id, guests in zip(
+            data.getlist("grocery_list"),
+            data.getlist("recipes"),
+            data.getlist("guests"),
+        ):
             recipe = Recipe.objects.get(pk=recipe_id)
-            GroceryListItem.objects.create(user=request.user, recipe=recipe, guests=guests)
+            GroceryListItem.objects.create(
+                grocery_list_id=grocery_list_id, recipe=recipe, guests=guests
+            )
 
         return JsonResponse({"success": True})
 
 
 @login_required
-def get_grocery_list(request):
-    grocery_lists = GroceryListItem.objects.filter(user=request.user)
+def get_grocery_list(request, grocery_list_id=None):
+    if grocery_list_id:
+        grocery_list = GroceryList.objects.get(id=grocery_list_id)
+    else:
+        grocery_list, created = GroceryList.objects.get_or_create(user=request.user)
+
+    grocery_list_items = GroceryListItem.objects.filter(grocery_list=grocery_list)
     ingredients = {}
 
     # Iterate over all grocery lists
-    for grocery_list in grocery_lists:
-        for ingredient in grocery_list.recipe.ingredients.all():
-            quantity = ingredient.quantity * grocery_list.guests
+    for grocery_list_item in grocery_list_items:
+        for ingredient in grocery_list_item.recipe.ingredients.all():
+            quantity = ingredient.quantity * grocery_list_item.guests
             if ingredient.name in ingredients:
                 ingredients[ingredient.name] += quantity
             else:
