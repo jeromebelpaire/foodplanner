@@ -43,8 +43,6 @@ def create_grocery_list(request):
 
 def generate_recipe_select_form(request):
     if "grocery_list" in request.POST:
-        grocery_list_id = request.POST.get("grocery_list")
-        grocery_list = GroceryList.objects.get(id=grocery_list_id)
         # Create a new RecipeForm populated with the recipes from the selected grocery list
         recipe_form = RecipeForm(initial={"recipes": Recipe.objects.all()})
         recipe_form_html = render_to_string(
@@ -53,6 +51,19 @@ def generate_recipe_select_form(request):
         return JsonResponse({"recipe_form_html": recipe_form_html})
     else:
         raise ValueError(f"Unkown grocery_list_id in: {request.POST}")
+
+
+def delete_grocery_list(request):
+    print(f"request is: {request}")
+    grocery_list_id = request.POST.get("grocery_list")  # Use POST instead of GET
+    try:
+        grocery_list = GroceryList.objects.get(id=grocery_list_id)
+        grocery_list.delete()
+        return JsonResponse({"success": True})
+    except GroceryList.DoesNotExist:
+        return JsonResponse(
+            {"error": "GroceryList not found"}, status=404
+        )  # Send an error response
 
 
 def recipe_sum_view(request):
@@ -88,10 +99,8 @@ def save_planned_recipe(request):
 
 @login_required
 def get_planned_ingredients(request):
-    print("Request is:")
     print(f"Content: {request}")
     grocery_list_id = request.GET.get("grocery_list")
-
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
     grocery_list_items = PlannedRecipe.objects.filter(grocery_list=grocery_list)

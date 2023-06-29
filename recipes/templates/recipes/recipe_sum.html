@@ -25,7 +25,8 @@
       </form>
       <form id="grocery-list-form" class="my-2" method="post">
         {% csrf_token %} {{ grocery_list_form.as_p }}
-        <button type="submit" class="btn btn-primary">Select Existing</button>
+        <button id="select-list-btn" type="button" class="btn btn-primary">Select List</button>
+        <button id="delete-list-btn" type="button" class="btn btn-primary">Delete List</button>
       </form>
       <form id="recipe-form" method="post">
         <p>Please select and submit a grocery list first</p>
@@ -38,7 +39,6 @@
       $(document).ready(function () {
         $("#create-grocery-list-form").submit(function (e) {
           e.preventDefault();
-
           $.ajax({
             url: "{% url 'create_grocery_list' %}",
             type: "POST",
@@ -53,9 +53,8 @@
           });
         });
 
-        $("#grocery-list-form").submit(function (e) {
-          e.preventDefault();
-          var form_data = $(this).serialize();
+        $("#select-list-btn").click(function () {
+          var form_data = $("#grocery-list-form").serialize();
           $.ajax({
             url: "{% url 'generate_recipe_select_form' %}",
             method: "POST",
@@ -64,6 +63,7 @@
               generate_recipe_select_form(data);
             },
           });
+
           $.ajax({
             url: "{% url 'get_planned_ingredients' %}",
             method: "GET",
@@ -73,37 +73,49 @@
             },
           });
         });
-      });
 
-      $("#recipe-form").submit(function (e) {
-        e.preventDefault();
-        var form_data1 = $(this).serializeArray();
-        var form_data_grocery_list = $("#grocery-list-form").serializeArray();
-
-        var groceryList = form_data_grocery_list.find(function (item) {
-          return item.name === "grocery_list";
+        $("#delete-list-btn").click(function () {
+          var form_data = $("#grocery-list-form").serialize();
+          $.ajax({
+            url: "{% url 'delete_grocery_list' %}", 
+            method: "POST",
+            data: form_data,
+            success: function (data) {
+              location.reload();
+            },
+          });
         });
 
-        if (groceryList) {
-          form_data1.push(groceryList);
-        }
-        var form_data = $.param(form_data1);
-        $.ajax({
-          url: "{% url 'save_planned_recipe' %}",
-          method: "POST",
-          data: form_data,
-          success: function (data) {
-            if (data.success) {
-              $.ajax({
-                url: "{% url 'get_planned_ingredients' %}",
-                method: "GET",
-                data: form_data,
-                success: function (data) {
-                  update_ingredients_list(data);
-                },
-              });
-            }
-          },
+        $("#recipe-form").submit(function (e) {
+          e.preventDefault();
+          var form_data1 = $(this).serializeArray();
+          var form_data_grocery_list = $("#grocery-list-form").serializeArray();
+
+          var groceryList = form_data_grocery_list.find(function (item) {
+            return item.name === "grocery_list";
+          });
+
+          if (groceryList) {
+            form_data1.push(groceryList);
+          }
+          var form_data = $.param(form_data1);
+          $.ajax({
+            url: "{% url 'save_planned_recipe' %}",
+            method: "POST",
+            data: form_data,
+            success: function (data) {
+              if (data.success) {
+                $.ajax({
+                  url: "{% url 'get_planned_ingredients' %}",
+                  method: "GET",
+                  data: form_data,
+                  success: function (data) {
+                    update_ingredients_list(data);
+                  },
+                });
+              }
+            },
+          });
         });
       });
     </script>
