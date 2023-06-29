@@ -111,8 +111,10 @@ def get_planned_ingredients(request):
         for ingredient in grocery_list_item.recipe.ingredients.all():
             quantity = ingredient.quantity * grocery_list_item.guests
             if ingredient.name in ingredients:
-                ingredients[ingredient.name] += quantity
+                ingredients[ingredient.name]["quantity"] += quantity
             else:
-                ingredients[ingredient.name] = quantity
+                ingredients[ingredient.name] = {}
+                ingredients[ingredient.name]["quantity"] = quantity
+                ingredients[ingredient.name]["unit"] = ingredient.unit  # FIXME
 
     return JsonResponse(ingredients)
