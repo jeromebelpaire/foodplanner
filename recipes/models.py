@@ -36,6 +36,9 @@ class GroceryList(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    def __str__(self):
+        return self.name
+
 
 class PlannedRecipe(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)

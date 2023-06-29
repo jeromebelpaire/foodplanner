@@ -87,7 +87,11 @@ def save_planned_recipe(request):
 
 
 @login_required
-def get_planned_ingredients(request, grocery_list_id=None):
+def get_planned_ingredients(request):
+    print("Request is:")
+    print(f"Content: {request}")
+    grocery_list_id = request.GET.get("grocery_list")
+
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
     grocery_list_items = PlannedRecipe.objects.filter(grocery_list=grocery_list)
