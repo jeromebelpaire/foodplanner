@@ -1,14 +1,17 @@
 function update_ingredients_list(data) {
-  console.log(data);
   $("#ingredients").empty();
-  for (var name in data) {
+  for (var ingredient in data) {
     $("#ingredients").append(
       '<li class="list-group-item">' +
-        name +
+        ingredient +
         ": " +
-        data[name]["quantity"] +
+        data[ingredient]["quantity"] +
         " " +
-        data[name]["unit"] +
+        data[ingredient]["unit"] +
+        '<span class="small-text">' +
+        " for recipe(s):  " +
+        data[ingredient]["from_recipe"] +
+        ' </span>'+
         "</li>"
     );
   }

@@ -103,18 +103,22 @@ def get_planned_ingredients(request):
     grocery_list_id = request.GET.get("grocery_list")
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
-    grocery_list_items = PlannedRecipe.objects.filter(grocery_list=grocery_list)
+    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     ingredients = {}
 
     # Iterate over all grocery lists
-    for grocery_list_item in grocery_list_items:
-        for ingredient in grocery_list_item.recipe.ingredients.all():
-            quantity = ingredient.quantity * grocery_list_item.guests
+    for planned_recipe in planned_recipes:
+        from_recipes_text = f"{planned_recipe.guests}p {planned_recipe.recipe.title}"
+
+        for ingredient in planned_recipe.recipe.ingredients.all():
+            quantity = ingredient.quantity * planned_recipe.guests
             if ingredient.name in ingredients:
                 ingredients[ingredient.name]["quantity"] += quantity
+                ingredients[ingredient.name]["from_recipe"] += f" & {from_recipes_text}"
             else:
                 ingredients[ingredient.name] = {}
                 ingredients[ingredient.name]["quantity"] = quantity
                 ingredients[ingredient.name]["unit"] = ingredient.unit  # FIXME
+                ingredients[ingredient.name]["from_recipe"] = from_recipes_text
 
     return JsonResponse(ingredients)
