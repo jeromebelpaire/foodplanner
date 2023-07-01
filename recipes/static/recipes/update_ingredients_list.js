@@ -3,6 +3,7 @@ function update_ingredients_list(data) {
   for (var ingredient in data) {
     $("#ingredients").append(
       '<li class="list-group-item">' +
+      '<input type="checkbox" class="checkbox">' +
         ingredient +
         ": " +
         data[ingredient]["quantity"] +
