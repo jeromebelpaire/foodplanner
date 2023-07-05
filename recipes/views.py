@@ -9,12 +9,14 @@ from .forms import GroceryListForm, RecipeForm
 from .models import GroceryList, PlannedRecipe, Ingredient, Recipe
 
 
+@login_required
 def home_view(request):
     recipes = Recipe.objects.order_by("-created_on")[:9]
     context = {"recipes": recipes}
     return render(request, "recipes/home.html", context)
 
 
+@login_required
 def recipe_view(request, recipe_slug, guests=1):
     recipe = get_object_or_404(Recipe, slug=recipe_slug)
     ingredients = Ingredient.objects.filter(recipe=recipe)
@@ -54,6 +56,7 @@ def generate_recipe_select_form(request):
         raise ValueError(f"Unkown grocery_list_id in: {request.POST}")
 
 
+@login_required
 def delete_grocery_list(request):
     print(f"request is: {request}")
     grocery_list_id = request.POST.get("grocery_list")  # Use POST instead of GET
@@ -136,6 +139,7 @@ def get_planned_recipes(request):
     return JsonResponse(planned_recipes_dict, safe=False)
 
 
+@login_required
 @require_http_methods(["DELETE"])
 @csrf_exempt  # FIXME
 def delete_planned_recipe(request, planned_recipe_id):
