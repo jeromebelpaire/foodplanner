@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 from .forms import GroceryListForm, RecipeForm
 from .models import GroceryList, PlannedRecipe, Ingredient, Recipe
@@ -66,6 +67,7 @@ def delete_grocery_list(request):
         )  # Send an error response
 
 
+@login_required
 def recipe_sum_view(request):
     # First, initialize both forms
     grocery_list_form = GroceryListForm(user=request.user)
@@ -122,3 +124,21 @@ def get_planned_ingredients(request):
                 ingredients[ingredient.name]["from_recipe"] = from_recipes_text
 
     return JsonResponse(ingredients)
+
+
+@login_required
+def get_planned_recipes(request):
+    grocery_list_id = request.GET.get("grocery_list")
+    grocery_list = GroceryList.objects.get(id=grocery_list_id)
+
+    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
+    planned_recipes_dict = [{"id": pr.id, "str": str(pr)} for pr in planned_recipes]
+    return JsonResponse(planned_recipes_dict, safe=False)
+
+
+@require_http_methods(["DELETE"])
+@csrf_exempt  # FIXME
+def delete_planned_recipe(request, planned_recipe_id):
+    planned_recipe = get_object_or_404(PlannedRecipe, id=planned_recipe_id)
+    planned_recipe.delete()
+    return JsonResponse({"status": "success"}, status=200)

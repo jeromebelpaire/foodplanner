@@ -1,0 +1,10 @@
+<div class="container">
+  <ul class="list-group" id="planned-recipes">
+    {% for planned_recipe in planned_recipes %}
+    <li class="list-group-item" id="planned-recipe-{{ planned_recipe.id }}">
+      {{ planned_recipe }}
+      <button class="btn btn-danger float-right delete-button" data-id="{{ planned_recipe.id }}">Delete</button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
