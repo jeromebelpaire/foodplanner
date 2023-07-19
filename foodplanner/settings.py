@@ -33,7 +33,7 @@ SECRET_KEY = "dlksjolcjojqjoisqjcqkljskjdcqlkjsdfsdqsdqsdh"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "[::1]", "foodplanner101.azurewebsites.net"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "foodplanner101.azurewebsites.net"]
 
 
 # Application definition
