@@ -60,4 +60,4 @@ jobs:
         with:
           app-name: 'foodplanner101'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_301C224400054DE1B9DCE45D37A39945 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8EA393A1021F4FD3B11E3B2E4DC05333 }}
