@@ -33,12 +33,10 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "[::1]",
     "foodplanner101.azurewebsites.net",
-    "foodplanner102.azurewebsites.net",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://foodplanner101.azurewebsites.net",
-    "https://foodplanner102.azurewebsites.net",
 ]
 
 SECURE_SSL_REDIRECT = False
