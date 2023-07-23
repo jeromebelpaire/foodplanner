@@ -462,3 +462,4 @@ __pycache__/
 /media/
 test_query.py
 test_postgres.py
+/staticfiles/

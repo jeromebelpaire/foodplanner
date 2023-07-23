@@ -20,9 +20,13 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path, reverse_lazy
 from django.views.generic.base import RedirectView
 
-urlpatterns = [
-    path("", RedirectView.as_view(url=reverse_lazy("home_view")), name="index"),
-    path("admin/", admin.site.urls),
-    path("recipes/", include("recipes.urls")),
-    path("accounts/", include("django.contrib.auth.urls")),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns = (
+    [
+        path("", RedirectView.as_view(url=reverse_lazy("home_view")), name="index"),
+        path("admin/", admin.site.urls),
+        path("recipes/", include("recipes.urls")),
+        path("accounts/", include("django.contrib.auth.urls")),
+    ]
+    + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+)
