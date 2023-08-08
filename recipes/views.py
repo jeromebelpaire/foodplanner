@@ -23,9 +23,8 @@ def recipe_view(request, recipe_slug, guests=1):
 
     scaled_ingredients = []
     for ingredient in ingredients:
-        scaled_ingredients.append(
-            {"name": ingredient.name, "quantity": ingredient.quantity * guests}
-        )
+        quantity = ingredient.quantity * guests
+        scaled_ingredients.append(f"{ingredient.name}: {quantity:.2f} {ingredient.unit}")
 
     context = {"recipe": recipe, "ingredients": scaled_ingredients}
 
