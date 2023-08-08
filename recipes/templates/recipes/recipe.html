@@ -1,56 +1,41 @@
+{% extends "recipes/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>{{ recipe.title }}</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
-      crossorigin="anonymous"
-    />
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-      crossorigin="anonymous"
-    ></script>
-  </head>
-  <body>
-    <div class="container py-5">
-      <div class="row">
-        <div class="col-md-8 offset-md-2">
-          <div class="d-flex justify-content-between align-items-center">
-            <h1 class="display-4">{{ recipe.title }}</h1>
-            <div>
-              <button id="decrease-guests" class="btn btn-secondary">-</button>
-              <span id="guest-count">1</span>
-              <button id="increase-guests" class="btn btn-primary">+</button>
-            </div>
+
+{% block content %}
+  <div class="container py-5">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="display-4">{{ recipe.title }}</h1>
+          <div>
+            <button id="decrease-guests" class="btn btn-secondary">-</button>
+            <span id="guest-count">1</span>
+            <button id="increase-guests" class="btn btn-primary">+</button>
           </div>
-          {% if recipe.image %}
-          <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="mx-auto d-block"/>
-          {% endif %}
-          <ul class="list-group mt-4">
-            {% for ingredient in ingredients %}
-            <li class="list-group-item">
-              <h5 class="mb-0">
-                <span class="ingredient-name">
-                    {{ ingredient.name }}
-                </span>:
-                <span class="ingredient-quantity">
-                    {{ ingredient.quantity }}
-                </span>
-              </h5>
-            </li>
-            {% endfor %}
-          </ul>
-          <h2 class="mt-4">Instructions</h2>
-          <span class="recipe-description mt-4">
-            {{ recipe.content|linebreaks }}
-          </span>
         </div>
+        {% if recipe.image %}
+        <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="mx-auto d-block"/>
+        {% endif %}
+        <ul class="list-group mt-4">
+          {% for ingredient in ingredients %}
+          <li class="list-group-item">
+            <h5 class="mb-0">
+              <span class="ingredient-name">
+                  {{ ingredient.name }}
+              </span>:
+              <span class="ingredient-quantity">
+                  {{ ingredient.quantity }}
+              </span>
+            </h5>
+          </li>
+          {% endfor %}
+        </ul>
+        <h2 class="mt-4">Instructions</h2>
+        <span class="recipe-description mt-4">
+          {{ recipe.content|linebreaks }}
+        </span>
       </div>
     </div>
-    <script src="{% static 'recipes/recipe.js' %}"></script>
-  </body>
-</html>
+  </div>
+  <script src="{% static 'recipes/recipe.js' %}"></script>
+{% endblock %}
