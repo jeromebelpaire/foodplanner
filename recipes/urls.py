@@ -7,6 +7,11 @@ urlpatterns = [
     path("recipe/<slug:recipe_slug>/<int:guests>/", views.recipe_view, name="recipe_view"),
     path("recipe_sum/", views.recipe_sum_view, name="recipe_sum_view"),
     path("save_planned_recipe/", views.save_planned_recipe, name="save_planned_recipe"),
+    path(
+        "get_formatted_ingredients/<slug:recipe_slug>/<int:guests>/",
+        views.get_formatted_ingredients,
+        name="get_formatted_ingredients",
+    ),
     path("get_planned_ingredients/", views.get_planned_ingredients, name="get_planned_ingredients"),
     path("create_grocery_list/", views.create_grocery_list, name="create_grocery_list"),
     path("delete_grocery_list/", views.delete_grocery_list, name="delete_grocery_list"),

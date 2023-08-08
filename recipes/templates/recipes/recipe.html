@@ -1,38 +1,42 @@
-{% extends "recipes/base.html" %}
-{% load static %}
-
-{% block content %}
-  <div class="container py-5">
-    <div class="row">
-      <div class="col-md-8 offset-md-2">
-        <div class="d-flex justify-content-between align-items-center">
-          <h1 class="display-4">{{ recipe.title }}</h1>
-          <div>
-            <button id="decrease-guests" class="btn btn-secondary">-</button>
-            <span id="guest-count">1</span>
-            <button id="increase-guests" class="btn btn-primary">+</button>
-          </div>
+{% extends "recipes/base.html" %} {% load static %} {% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="d-flex justify-content-between align-items-center">
+        <h1 class="display-4">{{ recipe.title }}</h1>
+        <div>
+          <button id="decrease-guests" class="btn btn-secondary">-</button>
+          <span id="guest-count">1</span>
+          <button id="increase-guests" class="btn btn-primary">+</button>
         </div>
-        {% if recipe.image %}
-        <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="mx-auto d-block"/>
-        {% endif %}
-        <ul class="list-group mt-4">
-          {% for ingredient in ingredients %}
-          <li class="list-group-item">
-            <h5 class="mb-0">
-              <span class="ingredient-name">
-                  {{ ingredient }}
-              </span>
-            </h5>
-          </li>
-          {% endfor %}
-        </ul>
-        <h2 class="mt-4">Instructions</h2>
-        <span class="recipe-description mt-4">
-          {{ recipe.content|linebreaks }}
-        </span>
       </div>
+      {% if recipe.image %}
+      <img
+        src="{{ recipe.image.url }}"
+        alt="{{ recipe.title }}"
+        class="img-fluid mx-auto d-block"
+      />
+      {% endif %}
+      <ul id="ingredients" class="list-group mt-4"></ul>
+      <h2 class="mt-4">Instructions</h2>
+      <span class="recipe-description mt-4"> {{ recipe.content|linebreaks }} </span>
     </div>
   </div>
-  <script src="{% static 'recipes/recipe.js' %}"></script>
+</div>
+<script>
+  $(document).ready(function () {
+    var recipeSlug = `{{ recipe.slug }}`;
+    var guests = $('#guest-count').text();
+    console.log(guests);
+    
+    $.ajax({
+      url: `/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`,
+      method: "GET",
+      success: function (data) {
+        update_ingredients_list(data);
+      },
+    });
+  });
+</script>
+<script src="{% static 'recipes/recipe_ingredients.js' %}"></script>
 {% endblock %}

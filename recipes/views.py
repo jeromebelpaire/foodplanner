@@ -32,6 +32,22 @@ def recipe_view(request, recipe_slug, guests=1):
 
 
 @login_required
+def get_formatted_ingredients(request, recipe_slug, guests=1):
+    recipe = get_object_or_404(Recipe, slug=recipe_slug)
+    ingredients = Ingredient.objects.filter(recipe=recipe)
+
+    scaled_ingredients = []
+    for ingredient in ingredients:
+        quantity = ingredient.quantity * guests
+        scaled_ingredients.append(f"{ingredient.name}: {quantity:.2f} {ingredient.unit}")
+
+    ingredients = {"recipe": recipe.title, "ingredients": scaled_ingredients}
+    print(ingredients)
+
+    return JsonResponse(ingredients)
+
+
+@login_required
 @csrf_exempt
 def create_grocery_list(request):
     if request.method == "POST":
