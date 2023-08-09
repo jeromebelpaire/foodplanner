@@ -25,16 +25,37 @@
 </div>
 <script>
   $(document).ready(function () {
-    var recipeSlug = `{{ recipe.slug }}`;
-    var guests = $('#guest-count').text();
-    console.log(guests);
-    
-    $.ajax({
-      url: `/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`,
-      method: "GET",
-      success: function (data) {
-        update_ingredients_list(data);
-      },
+    function fetchUpdatedIngredients() {
+      var recipeSlug = `{{ recipe.slug }}`;
+      var guests = $("#guest-count").text();
+      console.log(guests);
+
+      $.ajax({
+        url: `/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`,
+        method: "GET",
+        success: function (data) {
+          update_ingredients_list(data);
+        },
+      });
+    }
+    fetchUpdatedIngredients();
+
+    // Increase guest count event listener
+    $("#increase-guests").on("click", function () {
+      var currentGuestCount = parseInt($("#guest-count").text(), 10);
+      $("#guest-count").text(currentGuestCount + 1);
+
+      fetchUpdatedIngredients();
+    });
+
+    // Decrease guest count event listener
+    $("#decrease-guests").on("click", function () {
+      var currentGuestCount = parseInt($("#guest-count").text(), 10);
+      if (currentGuestCount > 1) {
+        // Assuming 1 is the minimum guest count
+        $("#guest-count").text(currentGuestCount - 1);
+        fetchUpdatedIngredients();
+      }
     });
   });
 </script>
