@@ -27,16 +27,16 @@
   document.addEventListener("DOMContentLoaded", function () {
     const guestCountEl = document.getElementById("guest-count");
 
-    function fetchUpdatedIngredients() {
+    async function fetchUpdatedIngredients() {
       const recipeSlug = `{{ recipe.slug }}`;
       const guests = guestCountEl.textContent;
 
-      fetch(`/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`)
-        .then((response) => response.json())
-        .then((data) => {
-          update_ingredients_list(data);
-        });
-    }
+      const res = await fetch(`/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`)
+      const data = await res.json()
+      console.log(data);
+      update_ingredients_list(data);
+    };
+    
     fetchUpdatedIngredients();
 
     // Increase guest count event listener
