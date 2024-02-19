@@ -24,114 +24,152 @@
     <ul id="ingredients" class="list-group"></ul>
   </div>
   <script>
-    $(document).ready(function () {
-      $("#create-grocery-list-form").submit(function (e) {
-        e.preventDefault();
-        $.ajax({
-          url: "{% url 'create_grocery_list' %}",
-          type: "POST",
-          data: {
-            name: $("#name").val(),
-            csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken]").val(),
-          },
-          success: function (response) {
-            alert("Grocery list created successfully!");
-            location.reload();
-          },
-        });
+    document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) =>{
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    console.log(formData);
+
+    try {
+      const fetchOptions = {
+        method: "POST",
+        body: formData,
+      };
+
+      const response = await fetch("{% url 'create_grocery_list' %}", fetchOptions);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error", error);
+    }
+  });
+
+  
+   document.getElementById("delete-list-btn").addEventListener("click", async (event) =>{
+    event.preventDefault();
+    const formData = new FormData(document.getElementById("grocery-list-form"));
+    
+    try {
+      const fetchOptions = {
+        method: "POST",
+        body: formData,
+      };
+      const response = await fetch("{% url 'delete_grocery_list' %}", fetchOptions);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error", error);
+    }
+   })
+
+   document.getElementById("select-list-btn").addEventListener("click", async (event) =>{
+    event.preventDefault();
+    const formData = new FormData(document.getElementById("grocery-list-form"));
+    
+    try {
+      const fetchOptions = {
+        method: "POST",
+        body: formData,
+      };
+      const response = await fetch("{% url 'generate_recipe_select_form' %}", fetchOptions);
+      const data = await response.json();
+      generate_recipe_select_form(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of formData) {
+      queryParams.append(key, value);
+    }
+
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(`{% url 'get_planned_recipes' %}?${queryParams.toString()}`, fetchOptions);
+      const data = await response.json();
+      generate_planned_recipes_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(`{% url 'get_planned_ingredients' %}?${queryParams.toString()}`, fetchOptions);
+      const data = await response.json();
+      update_ingredients_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+   })
+
+
+    //     $.ajax({
+    //       url: "{% url 'get_planned_recipes' %}",
+    //       method: "GET",
+    //       data: form_data,
+    //       success: function (data) {
+    //         generate_planned_recipes_list(data);
+
+    //         var deleteUrlTemplate = "{% url 'delete_planned_recipe' 12345 %}"; //FIXME
+    //         $(".delete-button").on("click", function () {
+    //           const plannedRecipeId = $(this).data("id");
+    //           var deleteUrl = deleteUrlTemplate.replace('12345', plannedRecipeId);
+    //           $.ajax({
+    //             url: deleteUrl,
+    //             type: "DELETE",
+    //             success: function (result) {
+    //               $(`#planned-recipe-${plannedRecipeId}`).remove();
+    //             },
+    //             error: function (result) {
+    //               alert("There was an error deleting the planned recipe.");
+    //             },
+    //           });
+    //         });
+    //       },
+    //     });
+
+
+    document.getElementById("recipe-form").addEventListener("submit", async (event) =>{
+      event.preventDefault();
+
+      var form_data1 = $(event.target).serializeArray();
+      console.log(form_data1);
+      console.log("end")
+      var form_data_grocery_list = $("#grocery-list-form").serializeArray();
+
+      var groceryList = form_data_grocery_list.find(function (item) {
+        return item.name === "grocery_list";
       });
 
-      $("#select-list-btn").click(function () {
-        var form_data = $("#grocery-list-form").serialize();
-        $.ajax({
-          url: "{% url 'generate_recipe_select_form' %}",
+      if (groceryList) {
+        form_data1.push(groceryList);
+      }
+      var form_data = $.param(form_data1);
+
+      try {
+        const fetchOptions = {
           method: "POST",
-          data: form_data,
-          success: function (data) {
-            generate_recipe_select_form(data);
+          headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
           },
-        });
+          body: form_data,
+        };
 
-        $.ajax({
-          url: "{% url 'get_planned_recipes' %}",
-          method: "GET",
-          data: form_data,
-          success: function (data) {
-            generate_planned_recipes_list(data);
+        console.log(form_data);
+        await fetch(`{% url 'save_planned_recipe' %}?${form_data}`, fetchOptions);
 
-            var deleteUrlTemplate = "{% url 'delete_planned_recipe' 12345 %}"; //FIXME
-            $(".delete-button").on("click", function () {
-              const plannedRecipeId = $(this).data("id");
-              var deleteUrl = deleteUrlTemplate.replace('12345', plannedRecipeId);
-              $.ajax({
-                url: deleteUrl,
-                type: "DELETE",
-                success: function (result) {
-                  $(`#planned-recipe-${plannedRecipeId}`).remove();
-                },
-                error: function (result) {
-                  alert("There was an error deleting the planned recipe.");
-                },
-              });
-            });
-          },
-        });
+        const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
+        const data = await response.json();
+        console.log(data);
+        update_ingredients_list(data);
 
-        $.ajax({
-          url: "{% url 'get_planned_ingredients' %}",
-          method: "GET",
-          data: form_data,
-          success: function (data) {
-            update_ingredients_list(data);
-          },
-        });
-      });
-
-      $("#delete-list-btn").click(function () {
-        var form_data = $("#grocery-list-form").serialize();
-        $.ajax({
-          url: "{% url 'delete_grocery_list' %}",
-          method: "POST",
-          data: form_data,
-          success: function (data) {
-            location.reload();
-          },
-        });
-      });
-
-      // FIXME
-      $("#recipe-form").submit(function (e) {
-        e.preventDefault();
-        var form_data1 = $(this).serializeArray();
-        var form_data_grocery_list = $("#grocery-list-form").serializeArray();
-
-        var groceryList = form_data_grocery_list.find(function (item) {
-          return item.name === "grocery_list";
-        });
-
-        if (groceryList) {
-          form_data1.push(groceryList);
-        }
-        var form_data = $.param(form_data1);
-        $.ajax({
-          url: "{% url 'save_planned_recipe' %}",
-          method: "POST",
-          data: form_data,
-          success: function (data) {
-            if (data.success) {
-              $.ajax({
-                url: "{% url 'get_planned_ingredients' %}",
-                method: "GET",
-                data: form_data,
-                success: function (data) {
-                  update_ingredients_list(data);
-                },
-              });
-            }
-          },
-        });
-      });
+      } catch (error) {
+        console.error("Error", error);
+      }
     });
+
   </script>
   <script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
   <script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>

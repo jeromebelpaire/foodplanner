@@ -63,9 +63,7 @@ def generate_recipe_select_form(request):
     if "grocery_list" in request.POST:
         # Create a new RecipeForm populated with the recipes from the selected grocery list
         recipe_form = RecipeForm(initial={"recipes": Recipe.objects.all()})
-        recipe_form_html = render_to_string(
-            "recipes/recipe_form.html", {"form": recipe_form}, request=request
-        )
+        recipe_form_html = render_to_string("recipes/recipe_form.html", {"form": recipe_form}, request=request)
         return JsonResponse({"recipe_form_html": recipe_form_html})
     else:
         raise ValueError(f"Unkown grocery_list_id in: {request.POST}")
@@ -74,15 +72,14 @@ def generate_recipe_select_form(request):
 @login_required
 def delete_grocery_list(request):
     print(f"request is: {request}")
+    print(f"request content: {request.POST}")
     grocery_list_id = request.POST.get("grocery_list")  # Use POST instead of GET
     try:
         grocery_list = GroceryList.objects.get(id=grocery_list_id)
         grocery_list.delete()
         return JsonResponse({"success": True})
     except GroceryList.DoesNotExist:
-        return JsonResponse(
-            {"error": "GroceryList not found"}, status=404
-        )  # Send an error response
+        return JsonResponse({"error": "GroceryList not found"}, status=404)  # Send an error response
 
 
 @login_required
@@ -110,9 +107,7 @@ def save_planned_recipe(request):
             data.getlist("guests"),
         ):
             recipe = Recipe.objects.get(pk=recipe_id)
-            PlannedRecipe.objects.create(
-                grocery_list_id=grocery_list_id, recipe=recipe, guests=guests
-            )
+            PlannedRecipe.objects.create(grocery_list_id=grocery_list_id, recipe=recipe, guests=guests)
 
         return JsonResponse({"success": True})
 
