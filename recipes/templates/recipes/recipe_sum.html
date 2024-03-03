@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+<script>var deleteUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script>
 <div class="container py-5">
   <form id="create-grocery-list-form" method="post">
     {% csrf_token %}
