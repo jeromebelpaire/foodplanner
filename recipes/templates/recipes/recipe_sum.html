@@ -2,7 +2,8 @@
 {% load static %}
 
 {% block content %}
-<script>var deleteUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script>
+<!-- TODO cleanup url replace method -->
+<script>var deleteUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script> 
 <div class="container py-5">
   <form id="create-grocery-list-form" method="post">
     {% csrf_token %}
@@ -143,6 +144,26 @@
       const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
       const data = await response.json();
       update_ingredients_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
+    // TODO Simplfy DRY
+    const formData = new FormData(document.getElementById("grocery-list-form"));
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of formData) {
+      queryParams.append(key, value);
+    }
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(
+        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
+      const data = await response.json();
+      generate_planned_recipes_list(data);
     } catch (error) {
       console.error("Error", error);
     }
