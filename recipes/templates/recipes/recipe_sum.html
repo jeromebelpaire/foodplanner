@@ -2,29 +2,29 @@
 {% load static %}
 
 {% block content %}
-  <div class="container py-5">
-    <form id="create-grocery-list-form" method="post">
-      {% csrf_token %}
-      <label for="name">Name:</label><br />
-      <input type="text" id="name" name="name" required /><br />
-      <input type="submit" class="btn btn-primary my-1" value="Create New List" />
-    </form>
-    <form id="grocery-list-form" class="my-2" method="post">
-      {% csrf_token %} {{ grocery_list_form.as_p }}
-      <button id="select-list-btn" type="button" class="btn btn-primary">Select List</button>
-      <button id="delete-list-btn" type="button" class="btn btn-primary">Delete List</button>
-    </form>
-    <form id="recipe-form" method="post">
-      <p>Please select and submit a grocery list first</p>
-      {% include 'recipes/recipe_form.html' %}
-    </form>
-    <h2 class="my-5">Planned Recipes</h2>
-    <ul class="list-group" id="planned-recipes"></ul>
-    <h2 class="my-5">Ingredients</h2>
-    <ul id="ingredients" class="list-group"></ul>
-  </div>
-  <script>
-    document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) =>{
+<div class="container py-5">
+  <form id="create-grocery-list-form" method="post">
+    {% csrf_token %}
+    <label for="name">Name:</label><br />
+    <input type="text" id="name" name="name" required /><br />
+    <input type="submit" class="btn btn-primary my-1" value="Create New List" />
+  </form>
+  <form id="grocery-list-form" class="my-2" method="post">
+    {% csrf_token %} {{ grocery_list_form.as_p }}
+    <button id="select-list-btn" type="button" class="btn btn-primary">Select List</button>
+    <button id="delete-list-btn" type="button" class="btn btn-primary">Delete List</button>
+  </form>
+  <form id="recipe-form" method="post">
+    <p>Please select and submit a grocery list first</p>
+    {% include 'recipes/recipe_form.html' %}
+  </form>
+  <h2 class="my-5">Planned Recipes</h2>
+  <ul class="list-group" id="planned-recipes"></ul>
+  <h2 class="my-5">Ingredients</h2>
+  <ul id="ingredients" class="list-group"></ul>
+</div>
+<script>
+  document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const formData = new FormData(event.target);
@@ -43,11 +43,10 @@
     }
   });
 
-  
-   document.getElementById("delete-list-btn").addEventListener("click", async (event) =>{
+  document.getElementById("delete-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
     const formData = new FormData(document.getElementById("grocery-list-form"));
-    
+
     try {
       const fetchOptions = {
         method: "POST",
@@ -58,12 +57,12 @@
     } catch (error) {
       console.error("Error", error);
     }
-   })
+  });
 
-   document.getElementById("select-list-btn").addEventListener("click", async (event) =>{
+  document.getElementById("select-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
     const formData = new FormData(document.getElementById("grocery-list-form"));
-    
+
     try {
       const fetchOptions = {
         method: "POST",
@@ -85,7 +84,10 @@
       const fetchOptions = {
         method: "GET",
       };
-      const response = await fetch(`{% url 'get_planned_recipes' %}?${queryParams.toString()}`, fetchOptions);
+      const response = await fetch(
+        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
       const data = await response.json();
       generate_planned_recipes_list(data);
     } catch (error) {
@@ -96,82 +98,56 @@
       const fetchOptions = {
         method: "GET",
       };
-      const response = await fetch(`{% url 'get_planned_ingredients' %}?${queryParams.toString()}`, fetchOptions);
+      const response = await fetch(
+        `{% url 'get_planned_ingredients' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
       const data = await response.json();
       update_ingredients_list(data);
     } catch (error) {
       console.error("Error", error);
     }
-   })
+  });
 
+  document.getElementById("recipe-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-    //     $.ajax({
-    //       url: "{% url 'get_planned_recipes' %}",
-    //       method: "GET",
-    //       data: form_data,
-    //       success: function (data) {
-    //         generate_planned_recipes_list(data);
+    const serializeForm = (form) =>
+      Array.from(new FormData(form), (e) => ({ name: e[0], value: e[1] }));
+    let form_data1 = serializeForm(event.target);
+    let form_data_grocery_list = serializeForm(document.getElementById("grocery-list-form"));
+    let groceryList = form_data_grocery_list.find((item) => item.name === "grocery_list");
 
-    //         var deleteUrlTemplate = "{% url 'delete_planned_recipe' 12345 %}"; //FIXME
-    //         $(".delete-button").on("click", function () {
-    //           const plannedRecipeId = $(this).data("id");
-    //           var deleteUrl = deleteUrlTemplate.replace('12345', plannedRecipeId);
-    //           $.ajax({
-    //             url: deleteUrl,
-    //             type: "DELETE",
-    //             success: function (result) {
-    //               $(`#planned-recipe-${plannedRecipeId}`).remove();
-    //             },
-    //             error: function (result) {
-    //               alert("There was an error deleting the planned recipe.");
-    //             },
-    //           });
-    //         });
-    //       },
-    //     });
+    if (groceryList) {
+      form_data1.push(groceryList);
+    }
+    const toUrlEncoded = (obj) =>
+      obj
+        .map((item) => encodeURIComponent(item.name) + "=" + encodeURIComponent(item.value))
+        .join("&");
+    let form_data = toUrlEncoded(form_data1);
 
+    try {
+      const fetchOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        },
+        body: form_data,
+      };
 
-    document.getElementById("recipe-form").addEventListener("submit", async (event) =>{
-      event.preventDefault();
+      console.log(form_data);
+      await fetch(`{% url 'save_planned_recipe' %}?${form_data}`, fetchOptions);
 
-      var form_data1 = $(event.target).serializeArray();
-      console.log(form_data1);
-      console.log("end")
-      var form_data_grocery_list = $("#grocery-list-form").serializeArray();
-
-      var groceryList = form_data_grocery_list.find(function (item) {
-        return item.name === "grocery_list";
-      });
-
-      if (groceryList) {
-        form_data1.push(groceryList);
-      }
-      var form_data = $.param(form_data1);
-
-      try {
-        const fetchOptions = {
-          method: "POST",
-          headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          },
-          body: form_data,
-        };
-
-        console.log(form_data);
-        await fetch(`{% url 'save_planned_recipe' %}?${form_data}`, fetchOptions);
-
-        const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
-        const data = await response.json();
-        console.log(data);
-        update_ingredients_list(data);
-
-      } catch (error) {
-        console.error("Error", error);
-      }
-    });
-
-  </script>
-  <script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
-  <script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>
-  <script src="{% static 'recipes/generate_planned_recipes_list.js' %}"></script>
+      const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
+      const data = await response.json();
+      update_ingredients_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+  });
+</script>
+<script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
+<script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>
+<script src="{% static 'recipes/generate_planned_recipes_list.js' %}"></script>
 {% endblock %}
