@@ -19,12 +19,12 @@ def home_view(request):
 @login_required
 def recipe_view(request, recipe_slug, guests=1):
     recipe = get_object_or_404(Recipe, slug=recipe_slug)
-    ingredients = Ingredient.objects.filter(recipe=recipe)
+    recipe_ingredients = recipe.recipeingredient_set.all()
 
     scaled_ingredients = []
-    for ingredient in ingredients:
-        quantity = ingredient.quantity * guests
-        scaled_ingredients.append(f"{ingredient.name}: {quantity:.2f} {ingredient.unit}")
+    for ri in recipe_ingredients:
+        quantity = ri.quantity * guests
+        scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
 
     context = {"recipe": recipe, "ingredients": scaled_ingredients}
 
@@ -34,15 +34,14 @@ def recipe_view(request, recipe_slug, guests=1):
 @login_required
 def get_formatted_ingredients(request, recipe_slug, guests=1):
     recipe = get_object_or_404(Recipe, slug=recipe_slug)
-    ingredients = Ingredient.objects.filter(recipe=recipe)
+    recipe_ingredients = recipe.recipeingredient_set.all()
 
     scaled_ingredients = []
-    for ingredient in ingredients:
-        quantity = ingredient.quantity * guests
-        scaled_ingredients.append(f"{ingredient.name}: {quantity:.2f} {ingredient.unit}")
+    for ri in recipe_ingredients:
+        quantity = ri.quantity * guests
+        scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
 
     ingredients = {"recipe": recipe.title, "ingredients": scaled_ingredients}
-    print(ingredients)
 
     return JsonResponse(ingredients)
 
@@ -125,16 +124,16 @@ def get_planned_ingredients(request):
     for planned_recipe in planned_recipes:
         from_recipes_text = f"{planned_recipe.guests}p {planned_recipe.recipe.title}"
 
-        for ingredient in planned_recipe.recipe.ingredients.all():
-            quantity = ingredient.quantity * planned_recipe.guests
-            if ingredient.name in ingredients:
-                ingredients[ingredient.name]["quantity"] += quantity
-                ingredients[ingredient.name]["from_recipe"] += f" & {from_recipes_text}"
+        for ri in planned_recipe.recipe.recipeingredient_set.all():
+            quantity = ri.quantity * planned_recipe.guests
+            if ri.ingredient.name in ingredients:
+                ingredients[ri.ingredient.name]["quantity"] += quantity
+                ingredients[ri.ingredient.name]["from_recipe"] += f" & {from_recipes_text}"
             else:
-                ingredients[ingredient.name] = {}
-                ingredients[ingredient.name]["quantity"] = quantity
-                ingredients[ingredient.name]["unit"] = ingredient.unit  # FIXME
-                ingredients[ingredient.name]["from_recipe"] = from_recipes_text
+                ingredients[ri.ingredient.name] = {}
+                ingredients[ri.ingredient.name]["quantity"] = quantity
+                ingredients[ri.ingredient.name]["unit"] = ri.ingredient.unit  # FIXME
+                ingredients[ri.ingredient.name]["from_recipe"] = from_recipes_text
 
     return JsonResponse(ingredients)
 

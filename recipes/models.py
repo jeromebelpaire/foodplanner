@@ -2,6 +2,14 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class Ingredient(models.Model):
+    name = models.CharField(max_length=100)
+    unit = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.name
+
+
 class Recipe(models.Model):
     title = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=200, unique=True)
@@ -10,6 +18,7 @@ class Recipe(models.Model):
     content = models.TextField()
     created_on = models.DateTimeField(auto_now_add=True)
     image = models.ImageField(upload_to="recipes/", blank=True, null=True)
+    ingredients = models.ManyToManyField(Ingredient, through="RecipeIngredient")
 
     class Meta:
         ordering = ["-created_on"]
@@ -18,14 +27,15 @@ class Recipe(models.Model):
         return self.title
 
 
-class Ingredient(models.Model):
-    name = models.CharField(max_length=100)
+class RecipeIngredient(models.Model):
     quantity = models.FloatField()  # quantity for 1 person
-    unit = models.CharField(max_length=50)
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="ingredients")
+    ingredient = models.ForeignKey(
+        Ingredient, on_delete=models.CASCADE
+    )  # FIXME do not delete recipe when deleting ingredient
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.name
+        return f"{self.ingredient.name} - {self.ingredient.unit}"
 
 
 class GroceryList(models.Model):
@@ -45,7 +55,7 @@ class PlannedRecipe(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     grocery_list = models.ForeignKey(GroceryList, related_name="items", on_delete=models.CASCADE)
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="grocery_lists")
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="plannedrecipes")
     guests = models.IntegerField()
 
     class Meta:
@@ -53,3 +63,11 @@ class PlannedRecipe(models.Model):
 
     def __str__(self):
         return f"{self.recipe.title} - {self.guests} guests"
+
+
+# class PlannedExtra(models.Model):
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+#     quantity = models.FloatField()  # quantity for 1 person
+#     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, related_name="plannedextras")
+#     grocery_list = models.ForeignKey(GroceryList, related_name="items", on_delete=models.CASCADE)
