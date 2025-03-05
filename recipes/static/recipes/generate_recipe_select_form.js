@@ -1,6 +1,6 @@
 function generate_recipe_select_form(data) {
   // Update the recipe form HTML
-  $("#recipe-form").html(data.recipe_form_html);
+  $("#recipe-select-form").html(data.recipe_form_html);
   $("#id_recipes").change(function () {
     var selectedRecipes = $(this).children("option:selected").length;
     $("#guests").empty();

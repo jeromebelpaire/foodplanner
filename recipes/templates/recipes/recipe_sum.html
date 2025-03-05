@@ -6,18 +6,18 @@
 <script>var deletePlannedRecipeUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script>
 <script>var deletePlannedExtraUrlTemplate = "{% url 'delete_planned_extra' '99999999' %}";</script>
 <div class="container py-5">
-  <form id="create-grocery-list-form" method="post">
+  <form id="create-grocerylist-select-form" method="post">
     {% csrf_token %}
     <label for="name">Name:</label><br />
     <input type="text" id="name" name="name" required /><br />
     <input type="submit" class="btn btn-primary my-1" value="Create New List" />
   </form>
-  <form id="grocery-list-form" class="my-2" method="post">
+  <form id="grocerylist-select-form" class="my-2" method="post">
     {% csrf_token %} {{ grocery_list_form.as_p }}
     <button id="select-list-btn" type="button" class="btn btn-primary">Select List</button>
     <button id="delete-list-btn" type="button" class="btn btn-primary">Delete List</button>
   </form>
-  <form id="recipe-form" method="post">
+  <form id="recipe-select-form" method="post">
     <p>Please select and submit a grocery list first</p>
     {% include 'recipes/recipe_form.html' %}
   </form>
@@ -52,7 +52,7 @@
   }
 
   // Create Grocery List
-  document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) => {
+  document.getElementById("create-grocerylist-select-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await makeFetchRequest("{% url 'create_grocery_list' %}", {
       method: "POST",
@@ -65,14 +65,14 @@
     event.preventDefault();
     await makeFetchRequest("{% url 'delete_grocery_list' %}", {
       method: "POST",
-      body: new FormData(document.getElementById("grocery-list-form"))
+      body: new FormData(document.getElementById("grocerylist-select-form"))
     }, () => window.location.reload());
   });
 
   // Select List (fetches multiple endpoints)
   document.getElementById("select-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
-    const groceryForm = document.getElementById("grocery-list-form");
+    const groceryForm = document.getElementById("grocerylist-select-form");
     const query = serializeForm(groceryForm);
 
     // Fetch and update select forms
@@ -93,12 +93,12 @@
   });
 
   // Recipe Form submission
-  document.getElementById("recipe-form").addEventListener("submit", async (event) => {
+  document.getElementById("recipe-select-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
     // Serialize both the recipe form and the grocery list form
     const recipeForm = event.target;
-    const groceryForm = document.getElementById("grocery-list-form");
+    const groceryForm = document.getElementById("grocerylist-select-form");
     const recipeData = new FormData(recipeForm);
     const groceryData = new FormData(groceryForm);
 
@@ -132,7 +132,7 @@
     event.preventDefault();
 
     const extrasForm = event.target;
-    const groceryForm = document.getElementById("grocery-list-form");
+    const groceryForm = document.getElementById("grocerylist-select-form");
     const extrasData = new FormData(extrasForm);
     const groceryData = new FormData(groceryForm);
 
