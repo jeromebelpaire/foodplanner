@@ -1,0 +1,10 @@
+<div class="container">
+  <ul class="list-group" id="planned-extras">
+    {% for planned_extra in planned_extras %}
+    <li class="list-group-item" id="planned-extra-{{ planned_extra.id }}">
+      {{ planned_extra }}
+      <button class="btn btn-danger float-right delete-button" data-id="{{ planned_extra.id }}">Delete</button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>

@@ -3,7 +3,8 @@
 
 {% block content %}
 <!-- TODO cleanup url replace method -->
-<script>var deleteUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script> 
+<script>var deletePlannedRecipeUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script>
+<script>var deletePlannedExtraUrlTemplate = "{% url 'delete_planned_extra' '99999999' %}";</script>
 <div class="container py-5">
   <form id="create-grocery-list-form" method="post">
     {% csrf_token %}
@@ -24,6 +25,12 @@
   <ul class="list-group" id="planned-recipes"></ul>
   <h2 class="my-5">Ingredients</h2>
   <ul id="ingredients" class="list-group"></ul>
+  <h2 class="my-5">Extras</h2>
+  <form id="extras-form" method="post">
+    <p>Please select and submit a grocery list first</p>
+    {% include 'recipes/extras_form.html' %}
+  </form>
+  <ul class="list-group" id="planned-extras"></ul>
 </div>
 <script>
   document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) => {
@@ -73,6 +80,7 @@
       const response = await fetch("{% url 'generate_recipe_select_form' %}", fetchOptions);
       const data = await response.json();
       generate_recipe_select_form(data);
+      generate_extras_select_form(data);
     } catch (error) {
       console.error("Error", error);
     }
@@ -106,6 +114,21 @@
       );
       const data = await response.json();
       update_ingredients_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
+    // TODO Simplfy DRY
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(
+        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
+      const data = await response.json();
+      generate_planned_extras_list(data);
     } catch (error) {
       console.error("Error", error);
     }
@@ -167,9 +190,100 @@
     } catch (error) {
       console.error("Error", error);
     }
+
+    // TODO Simplfy DRY
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(
+        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
+      const data = await response.json();
+      generate_planned_extras_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
   });
+  // TODO Make DRY - extras
+  document.getElementById("extras-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const serializeForm = (form) =>
+      Array.from(new FormData(form), (e) => ({ name: e[0], value: e[1] }));
+    let form_data1 = serializeForm(event.target);
+    let form_data_grocery_list = serializeForm(document.getElementById("grocery-list-form"));
+    let groceryList = form_data_grocery_list.find((item) => item.name === "grocery_list");
+
+    if (groceryList) {
+      form_data1.push(groceryList);
+    }
+    const toUrlEncoded = (obj) =>
+      obj
+        .map((item) => encodeURIComponent(item.name) + "=" + encodeURIComponent(item.value))
+        .join("&");
+    let form_data = toUrlEncoded(form_data1);
+
+    try {
+      const fetchOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        },
+        body: form_data,
+      };
+
+      console.log(form_data);
+      await fetch(`{% url 'save_planned_extra' %}?${form_data}`, fetchOptions);
+
+      const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
+      const data = await response.json();
+      update_ingredients_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+
+    // TODO Simplfy DRY
+    const formData = new FormData(document.getElementById("grocery-list-form"));
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of formData) {
+      queryParams.append(key, value);
+    }
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(
+        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
+      const data = await response.json();
+      generate_planned_recipes_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+    // TODO Simplfy DRY
+    try {
+      const fetchOptions = {
+        method: "GET",
+      };
+      const response = await fetch(
+        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
+        fetchOptions
+      );
+      const data = await response.json();
+      generate_planned_extras_list(data);
+    } catch (error) {
+      console.error("Error", error);
+    }
+  });  
+
 </script>
 <script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
 <script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>
 <script src="{% static 'recipes/generate_planned_recipes_list.js' %}"></script>
+<script src="{% static 'recipes/generate_extras_select_form.js' %}"></script>
+<script src="{% static 'recipes/generate_planned_extras_list.js' %}"></script>
 {% endblock %}

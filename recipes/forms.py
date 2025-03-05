@@ -1,10 +1,16 @@
 from django import forms
-from .models import Recipe, GroceryList
+from .models import Recipe, Ingredient, GroceryList
 
 
 class RecipeForm(forms.Form):
     recipes = forms.ModelMultipleChoiceField(
         queryset=Recipe.objects.all(), widget=forms.SelectMultiple(attrs={"class": "form-control"})
+    )
+
+
+class ExtrasForm(forms.Form):
+    extras = forms.ModelMultipleChoiceField(
+        queryset=Ingredient.objects.all(), widget=forms.SelectMultiple(attrs={"class": "form-control"})
     )
 
 
