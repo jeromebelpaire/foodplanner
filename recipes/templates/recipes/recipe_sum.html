@@ -26,7 +26,7 @@
   <h2 class="my-5">Ingredients</h2>
   <ul id="ingredients" class="list-group"></ul>
   <h2 class="my-5">Extras</h2>
-  <form id="extras-form" method="post">
+  <form id="extras-select-form" method="post">
     <p>Please select and submit a grocery list first</p>
     {% include 'recipes/extras_form.html' %}
   </form>
@@ -92,7 +92,7 @@
     ]);
   });
 
-  // Recipe Form submission
+  // Recipe select Form submission
   document.getElementById("recipe-select-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -128,7 +128,7 @@
   });
 
   // Extras Form submission
-  document.getElementById("extras-form").addEventListener("submit", async (event) => {
+  document.getElementById("extras-select-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const extrasForm = event.target;

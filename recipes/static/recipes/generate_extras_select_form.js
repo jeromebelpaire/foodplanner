@@ -1,6 +1,6 @@
 function generate_extras_select_form(data) {
   // Update the recipe form HTML
-  $("#extras-form").html(data.extras_form_html);
+  $("#extras-select-form").html(data.extras_form_html);
   $("#id_extras").change(function () {
     var selectedExtra = $(this).children("option:selected").length;
     $("#quantity").empty();
