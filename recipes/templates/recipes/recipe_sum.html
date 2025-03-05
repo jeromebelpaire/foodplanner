@@ -72,13 +72,13 @@
   // Select List (fetches multiple endpoints)
   document.getElementById("select-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
-    const groceryForm = document.getElementById("grocerylist-select-form");
-    const query = serializeForm(groceryForm);
+    const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
+    const query = serializeForm(grocerylistSelectForm);
 
     // Fetch and update select forms
     await makeFetchRequest("{% url 'generate_recipe_select_form' %}", {
       method: "POST",
-      body: new FormData(groceryForm)
+      body: new FormData(grocerylistSelectForm)
     }, (data) => {
       generate_recipe_select_form(data);
       generate_extras_select_form(data);
@@ -98,13 +98,13 @@
 
     // Serialize both the recipe form and the grocery list form
     const recipeForm = event.target;
-    const groceryForm = document.getElementById("grocerylist-select-form");
+    const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
     const recipeData = new FormData(recipeForm);
-    const groceryData = new FormData(groceryForm);
+    const grocerylistData = new FormData(grocerylistSelectForm);
 
     // Append the grocery list info to the recipe data if available
-    if (groceryData.has("grocery_list")) {
-      recipeData.append("grocery_list", groceryData.get("grocery_list"));
+    if (grocerylistData.has("grocery_list")) {
+      recipeData.append("grocery_list", grocerylistData.get("grocery_list"));
     }
 
     // Convert form data to URL-encoded string for GET requests if needed
@@ -120,7 +120,7 @@
     await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
 
     // Refresh planned recipes and extras
-    const query = serializeForm(groceryForm);
+    const query = serializeForm(grocerylistSelectForm);
     await Promise.all([
       makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
       makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
@@ -131,13 +131,13 @@
   document.getElementById("extras-select-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const extrasForm = event.target;
-    const groceryForm = document.getElementById("grocerylist-select-form");
-    const extrasData = new FormData(extrasForm);
-    const groceryData = new FormData(groceryForm);
+    const extrasSelectForm = event.target;
+    const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
+    const extrasData = new FormData(extrasSelectForm);
+    const grocerylistData = new FormData(grocerylistSelectForm);
 
-    if (groceryData.has("grocery_list")) {
-      extrasData.append("grocery_list", groceryData.get("grocery_list"));
+    if (grocerylistData.has("grocery_list")) {
+      extrasData.append("grocery_list", grocerylistData.get("grocery_list"));
     }
 
     const formEncoded = new URLSearchParams(extrasData).toString();
@@ -150,7 +150,7 @@
 
     await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
 
-    const query = serializeForm(groceryForm);
+    const query = serializeForm(grocerylistSelectForm);
     await Promise.all([
       makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
       makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
