@@ -33,253 +33,129 @@
   <ul class="list-group" id="planned-extras"></ul>
 </div>
 <script>
+  // Utility: Serialize a form's data to a URL-encoded string
+  function serializeForm(form) {
+    return new URLSearchParams(new FormData(form)).toString();
+  }
+
+  // Utility: A generic fetch helper that handles errors and optionally calls a callback with JSON data
+  async function makeFetchRequest(url, options = {}, callback) {
+    try {
+      const response = await fetch(url, options);
+      if (callback) {
+        const data = await response.json();
+        callback(data);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
+  // Create Grocery List
   document.getElementById("create-grocery-list-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-
-    const formData = new FormData(event.target);
-    console.log(formData);
-
-    try {
-      const fetchOptions = {
-        method: "POST",
-        body: formData,
-      };
-
-      const response = await fetch("{% url 'create_grocery_list' %}", fetchOptions);
-      window.location.reload();
-    } catch (error) {
-      console.error("Error", error);
-    }
+    await makeFetchRequest("{% url 'create_grocery_list' %}", {
+      method: "POST",
+      body: new FormData(event.target)
+    }, () => window.location.reload());
   });
 
+  // Delete Grocery List
   document.getElementById("delete-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
-    const formData = new FormData(document.getElementById("grocery-list-form"));
-
-    try {
-      const fetchOptions = {
-        method: "POST",
-        body: formData,
-      };
-      const response = await fetch("{% url 'delete_grocery_list' %}", fetchOptions);
-      window.location.reload();
-    } catch (error) {
-      console.error("Error", error);
-    }
+    await makeFetchRequest("{% url 'delete_grocery_list' %}", {
+      method: "POST",
+      body: new FormData(document.getElementById("grocery-list-form"))
+    }, () => window.location.reload());
   });
 
+  // Select List (fetches multiple endpoints)
   document.getElementById("select-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
-    const formData = new FormData(document.getElementById("grocery-list-form"));
+    const groceryForm = document.getElementById("grocery-list-form");
+    const query = serializeForm(groceryForm);
 
-    try {
-      const fetchOptions = {
-        method: "POST",
-        body: formData,
-      };
-      const response = await fetch("{% url 'generate_recipe_select_form' %}", fetchOptions);
-      const data = await response.json();
+    // Fetch and update select forms
+    await makeFetchRequest("{% url 'generate_recipe_select_form' %}", {
+      method: "POST",
+      body: new FormData(groceryForm)
+    }, (data) => {
       generate_recipe_select_form(data);
       generate_extras_select_form(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
+    });
 
-    const queryParams = new URLSearchParams();
-    for (const [key, value] of formData) {
-      queryParams.append(key, value);
-    }
-
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_recipes_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
-
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_ingredients' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      update_ingredients_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
-
-    // TODO Simplfy DRY
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_extras_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
+    // Fetch planned recipes, ingredients, and extras in parallel
+    await Promise.all([
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_ingredients' %}?${query}`, { method: "GET" }, update_ingredients_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+    ]);
   });
 
+  // Recipe Form submission
   document.getElementById("recipe-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const serializeForm = (form) =>
-      Array.from(new FormData(form), (e) => ({ name: e[0], value: e[1] }));
-    let form_data1 = serializeForm(event.target);
-    let form_data_grocery_list = serializeForm(document.getElementById("grocery-list-form"));
-    let groceryList = form_data_grocery_list.find((item) => item.name === "grocery_list");
+    // Serialize both the recipe form and the grocery list form
+    const recipeForm = event.target;
+    const groceryForm = document.getElementById("grocery-list-form");
+    const recipeData = new FormData(recipeForm);
+    const groceryData = new FormData(groceryForm);
 
-    if (groceryList) {
-      form_data1.push(groceryList);
-    }
-    const toUrlEncoded = (obj) =>
-      obj
-        .map((item) => encodeURIComponent(item.name) + "=" + encodeURIComponent(item.value))
-        .join("&");
-    let form_data = toUrlEncoded(form_data1);
-
-    try {
-      const fetchOptions = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        },
-        body: form_data,
-      };
-
-      console.log(form_data);
-      await fetch(`{% url 'save_planned_recipe' %}?${form_data}`, fetchOptions);
-
-      const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
-      const data = await response.json();
-      update_ingredients_list(data);
-    } catch (error) {
-      console.error("Error", error);
+    // Append the grocery list info to the recipe data if available
+    if (groceryData.has("grocery_list")) {
+      recipeData.append("grocery_list", groceryData.get("grocery_list"));
     }
 
-    // TODO Simplfy DRY
-    const formData = new FormData(document.getElementById("grocery-list-form"));
-    const queryParams = new URLSearchParams();
-    for (const [key, value] of formData) {
-      queryParams.append(key, value);
-    }
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_recipes_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
+    // Convert form data to URL-encoded string for GET requests if needed
+    const formEncoded = new URLSearchParams(recipeData).toString();
 
-    // TODO Simplfy DRY
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_extras_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
+    // Save planned recipe and update ingredients list
+    await makeFetchRequest(`{% url 'save_planned_recipe' %}?${formEncoded}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+      body: formEncoded
+    });
 
+    await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
+
+    // Refresh planned recipes and extras
+    const query = serializeForm(groceryForm);
+    await Promise.all([
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+    ]);
   });
-  // TODO Make DRY - extras
+
+  // Extras Form submission
   document.getElementById("extras-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const serializeForm = (form) =>
-      Array.from(new FormData(form), (e) => ({ name: e[0], value: e[1] }));
-    let form_data1 = serializeForm(event.target);
-    let form_data_grocery_list = serializeForm(document.getElementById("grocery-list-form"));
-    let groceryList = form_data_grocery_list.find((item) => item.name === "grocery_list");
+    const extrasForm = event.target;
+    const groceryForm = document.getElementById("grocery-list-form");
+    const extrasData = new FormData(extrasForm);
+    const groceryData = new FormData(groceryForm);
 
-    if (groceryList) {
-      form_data1.push(groceryList);
-    }
-    const toUrlEncoded = (obj) =>
-      obj
-        .map((item) => encodeURIComponent(item.name) + "=" + encodeURIComponent(item.value))
-        .join("&");
-    let form_data = toUrlEncoded(form_data1);
-
-    try {
-      const fetchOptions = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        },
-        body: form_data,
-      };
-
-      console.log(form_data);
-      await fetch(`{% url 'save_planned_extra' %}?${form_data}`, fetchOptions);
-
-      const response = await fetch(`{% url 'get_planned_ingredients' %}?${form_data}`);
-      const data = await response.json();
-      update_ingredients_list(data);
-    } catch (error) {
-      console.error("Error", error);
+    if (groceryData.has("grocery_list")) {
+      extrasData.append("grocery_list", groceryData.get("grocery_list"));
     }
 
-    // TODO Simplfy DRY
-    const formData = new FormData(document.getElementById("grocery-list-form"));
-    const queryParams = new URLSearchParams();
-    for (const [key, value] of formData) {
-      queryParams.append(key, value);
-    }
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_recipes' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_recipes_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
-    // TODO Simplfy DRY
-    try {
-      const fetchOptions = {
-        method: "GET",
-      };
-      const response = await fetch(
-        `{% url 'get_planned_extras' %}?${queryParams.toString()}`,
-        fetchOptions
-      );
-      const data = await response.json();
-      generate_planned_extras_list(data);
-    } catch (error) {
-      console.error("Error", error);
-    }
-  });  
+    const formEncoded = new URLSearchParams(extrasData).toString();
 
+    await makeFetchRequest(`{% url 'save_planned_extra' %}?${formEncoded}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+      body: formEncoded
+    });
+
+    await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
+
+    const query = serializeForm(groceryForm);
+    await Promise.all([
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+    ]);
+  });
 </script>
 <script src="{% static 'recipes/update_ingredients_list.js' %}"></script>
 <script src="{% static 'recipes/generate_recipe_select_form.js' %}"></script>
