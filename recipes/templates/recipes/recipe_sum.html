@@ -3,8 +3,6 @@
 
 {% block content %}
 <!-- TODO cleanup url replace method -->
-<script>var deletePlannedRecipeUrlTemplate = "{% url 'delete_planned_recipe' '99999999' %}";</script>
-<script>var deletePlannedExtraUrlTemplate = "{% url 'delete_planned_extra' '99999999' %}";</script>
 <div class="container py-5">
   <form id="create-grocerylist-select-form" method="post">
     {% csrf_token %}

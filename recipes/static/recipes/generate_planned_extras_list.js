@@ -17,8 +17,7 @@ function generate_planned_extras_list(data) {
     deleteButton.setAttribute("data-id", plannedExtra["id"]);
 
     // Replace 'PLACEHOLDER' in the template URL with the actual extra ID
-    const deleteUrl = deletePlannedExtraUrlTemplate.replace("99999999", plannedExtra["id"]);
-    deleteButton.setAttribute("data-delete-url", deleteUrl);
+    deleteButton.setAttribute("data-delete-url", plannedExtra["delete_url"]);
 
     // Attach the click event listener to the delete button
     deleteButton.addEventListener("click", function () {
@@ -31,7 +30,6 @@ function generate_planned_extras_list(data) {
 }
 
 function deleteExtra(deleteUrl) {
-  // Use the provided deleteUrl directly, which now includes the correct extra ID
   fetch(deleteUrl, {
     method: "DELETE",
   })

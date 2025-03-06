@@ -16,9 +16,7 @@ function generate_planned_recipes_list(data) {
     deleteButton.className = "btn btn-danger float-right delete-button";
     deleteButton.setAttribute("data-id", plannedRecipe["id"]);
 
-    // Replace 'PLACEHOLDER' in the template URL with the actual recipe ID
-    const deleteUrl = deletePlannedRecipeUrlTemplate.replace("99999999", plannedRecipe["id"]);
-    deleteButton.setAttribute("data-delete-url", deleteUrl);
+    deleteButton.setAttribute("data-delete-url", plannedRecipe["delete_url"]);
 
     // Attach the click event listener to the delete button
     deleteButton.addEventListener("click", function () {
@@ -31,7 +29,6 @@ function generate_planned_recipes_list(data) {
 }
 
 function deleteRecipe(deleteUrl) {
-  // Use the provided deleteUrl directly, which now includes the correct recipe ID
   fetch(deleteUrl, {
     method: "DELETE",
   })

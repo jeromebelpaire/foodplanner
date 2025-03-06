@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.urls import reverse
 
 from .forms import GroceryListForm, RecipeForm, ExtrasForm
 from .models import GroceryList, PlannedRecipe, Recipe, PlannedExtra, Ingredient
@@ -176,7 +177,14 @@ def get_planned_recipes(request):
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
     planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
-    planned_recipes_dict = [{"id": pr.id, "str": str(pr)} for pr in planned_recipes]
+    planned_recipes_dict = [
+        {
+            "id": pr.id,
+            "str": str(pr),
+            "delete_url": reverse("delete_planned_recipe", args=[pr.id]),
+        }
+        for pr in planned_recipes
+    ]
     return JsonResponse(planned_recipes_dict, safe=False)
 
 
@@ -186,7 +194,14 @@ def get_planned_extras(request):
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
     planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
-    planned_extras_dict = [{"id": pr.id, "str": str(pr)} for pr in planned_extras]
+    planned_extras_dict = [
+        {
+            "id": pr.id,
+            "str": str(pr),
+            "delete_url": reverse("delete_planned_extra", args=[pr.id]),
+        }
+        for pr in planned_extras
+    ]
     return JsonResponse(planned_extras_dict, safe=False)
 
 
