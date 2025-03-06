@@ -73,7 +73,8 @@
   document.getElementById("select-list-btn").addEventListener("click", async (event) => {
     event.preventDefault();
     const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
-    const query = serializeForm(grocerylistSelectForm);
+    const grocerylistSelectData = new FormData(grocerylistSelectForm);
+    currentGroceryList = grocerylistSelectData.get("grocery_list");
 
     // Fetch and update select forms
     await makeFetchRequest("{% url 'generate_recipe_select_form' %}", {
@@ -86,9 +87,9 @@
 
     // Fetch planned recipes, ingredients, and extras in parallel
     await Promise.all([
-      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
-      makeFetchRequest(`{% url 'get_planned_ingredients' %}?${query}`, { method: "GET" }, update_ingredients_list),
-      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_ingredients' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, update_ingredients_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_extras_list)
     ]);
   });
 
@@ -98,16 +99,8 @@
 
     // Serialize both the recipe form and the grocery list form
     const recipeForm = event.target;
-    const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
     const recipeData = new FormData(recipeForm);
-    const grocerylistData = new FormData(grocerylistSelectForm);
-
-    // Append the grocery list info to the recipe data if available
-    if (grocerylistData.has("grocery_list")) {
-      recipeData.append("grocery_list", grocerylistData.get("grocery_list"));
-    }
-
-    // Convert form data to URL-encoded string for GET requests if needed
+    recipeData.append("grocery_list", currentGroceryList);
     const formEncoded = new URLSearchParams(recipeData).toString();
 
     // Save planned recipe and update ingredients list
@@ -120,10 +113,9 @@
     await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
 
     // Refresh planned recipes and extras
-    const query = serializeForm(grocerylistSelectForm);
     await Promise.all([
-      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
-      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_extras_list)
     ]);
   });
 
@@ -132,14 +124,8 @@
     event.preventDefault();
 
     const extrasSelectForm = event.target;
-    const grocerylistSelectForm = document.getElementById("grocerylist-select-form");
     const extrasData = new FormData(extrasSelectForm);
-    const grocerylistData = new FormData(grocerylistSelectForm);
-
-    if (grocerylistData.has("grocery_list")) {
-      extrasData.append("grocery_list", grocerylistData.get("grocery_list"));
-    }
-
+    extrasData.append("grocery_list", currentGroceryList);
     const formEncoded = new URLSearchParams(extrasData).toString();
 
     await makeFetchRequest(`{% url 'save_planned_extra' %}?${formEncoded}`, {
@@ -150,10 +136,9 @@
 
     await makeFetchRequest(`{% url 'get_planned_ingredients' %}?${formEncoded}`, { method: "GET" }, update_ingredients_list);
 
-    const query = serializeForm(grocerylistSelectForm);
     await Promise.all([
-      makeFetchRequest(`{% url 'get_planned_recipes' %}?${query}`, { method: "GET" }, generate_planned_recipes_list),
-      makeFetchRequest(`{% url 'get_planned_extras' %}?${query}`, { method: "GET" }, generate_planned_extras_list)
+      makeFetchRequest(`{% url 'get_planned_recipes' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_recipes_list),
+      makeFetchRequest(`{% url 'get_planned_extras' %}?grocery_list=${encodeURIComponent(currentGroceryList)}`, { method: "GET" }, generate_planned_extras_list)
     ]);
   });
 </script>
