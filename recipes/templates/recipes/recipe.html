@@ -33,7 +33,6 @@
 
       const res = await fetch(`/recipes/get_formatted_ingredients/${recipeSlug}/${guests}/`)
       const data = await res.json()
-      console.log(data);
       update_ingredients_list(data);
     };
     
@@ -47,7 +46,7 @@
     });
 
     // Decrease guest count event listener
-    $("#decrease-guests").on("click", function () {
+    document.getElementById("decrease-guests").addEventListener("click", function () {
       let currentGuestCount = parseInt(guestCountEl.textContent, 10);
       if (currentGuestCount > 1) {
         guestCountEl.textContent = currentGuestCount - 1;
