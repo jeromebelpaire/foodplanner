@@ -29,9 +29,7 @@ class Recipe(models.Model):
 
 class RecipeIngredient(models.Model):
     quantity = models.FloatField()  # quantity for 1 person
-    ingredient = models.ForeignKey(
-        Ingredient, on_delete=models.CASCADE
-    )  # FIXME do not delete recipe when deleting ingredient
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
 
     def __str__(self):
