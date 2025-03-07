@@ -30,8 +30,12 @@ function generate_planned_extras_list(data) {
 }
 
 function deleteExtra(deleteUrl) {
+  const csrftoken = getCookie("csrftoken");
   fetch(deleteUrl, {
     method: "DELETE",
+    headers: {
+      "X-CSRFToken": csrftoken,
+    },
   })
     .then((response) => {
       if (response.ok) {

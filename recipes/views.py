@@ -74,8 +74,6 @@ def generate_recipe_select_form(request):
 
 @login_required
 def delete_grocery_list(request):
-    print(f"request is: {request}")
-    print(f"request content: {request.POST}")
     grocery_list_id = request.POST.get("grocery_list")  # Use POST instead of GET
     try:
         grocery_list = GroceryList.objects.get(id=grocery_list_id)
@@ -99,7 +97,6 @@ def recipe_sum_view(request):
 
 
 @login_required
-@csrf_exempt
 def save_planned_recipe(request):
     if request.method == "POST":
         data = request.POST
@@ -116,7 +113,6 @@ def save_planned_recipe(request):
 
 
 @login_required
-@csrf_exempt
 def save_planned_extra(request):
     if request.method == "POST":
         data = request.POST
@@ -134,7 +130,6 @@ def save_planned_extra(request):
 
 @login_required
 def get_planned_ingredients(request):
-    print(f"Content: {request}")
     grocery_list_id = request.GET.get("grocery_list")
     grocery_list = GroceryList.objects.get(id=grocery_list_id)
 
@@ -207,7 +202,6 @@ def get_planned_extras(request):
 
 @login_required
 @require_http_methods(["DELETE"])
-@csrf_exempt  # FIXME
 def delete_planned_recipe(request, planned_recipe_id):
     planned_recipe = get_object_or_404(PlannedRecipe, id=planned_recipe_id)
     planned_recipe.delete()
@@ -216,7 +210,6 @@ def delete_planned_recipe(request, planned_recipe_id):
 
 @login_required
 @require_http_methods(["DELETE"])
-@csrf_exempt  # FIXME
 def delete_planned_extra(request, planned_extra_id):
     planned_extra = get_object_or_404(PlannedExtra, id=planned_extra_id)
     planned_extra.delete()

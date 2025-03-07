@@ -29,8 +29,12 @@ function generate_planned_recipes_list(data) {
 }
 
 function deleteRecipe(deleteUrl) {
+  const csrftoken = getCookie("csrftoken");
   fetch(deleteUrl, {
     method: "DELETE",
+    headers: {
+      "X-CSRFToken": csrftoken,
+    },
   })
     .then((response) => {
       if (response.ok) {
