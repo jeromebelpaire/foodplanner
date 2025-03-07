@@ -149,19 +149,19 @@ def get_planned_ingredients(request):
             else:
                 ingredients[ri.ingredient.name] = {}
                 ingredients[ri.ingredient.name]["quantity"] = quantity
-                ingredients[ri.ingredient.name]["unit"] = ri.ingredient.unit  # FIXME
+                ingredients[ri.ingredient.name]["unit"] = ri.ingredient.unit
                 ingredients[ri.ingredient.name]["from_recipe"] = from_recipes_text
-
-    from_recipes_text += " Extras:" if len(planned_extras) > 0 else ""
 
     for pe in planned_extras:
         quantity = pe.quantity
         if pe.ingredient.name in ingredients:
             ingredients[pe.ingredient.name]["quantity"] += quantity
+            ingredients[pe.ingredient.name]["from_recipe"] += f" & Extras"
         else:
             ingredients[pe.ingredient.name] = {}
             ingredients[pe.ingredient.name]["quantity"] = quantity
-            ingredients[pe.ingredient.name]["unit"] = pe.ingredient.unit  # FIXME
+            ingredients[pe.ingredient.name]["unit"] = pe.ingredient.unit
+            ingredients[pe.ingredient.name]["from_recipe"] = f"Extras"
 
     return JsonResponse(ingredients)
 
