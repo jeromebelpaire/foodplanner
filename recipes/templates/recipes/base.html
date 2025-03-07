@@ -34,11 +34,15 @@
             <li class="nav-item">
               <a class="nav-link active" aria-current="page" href="{% url 'home_view' %}">Home</a>
             </li>
-                        <li class="nav-item">
+            <li class="nav-item">
               <a class="nav-link active" aria-current="page" href="{% url 'recipe_sum_view' %}">Shopping Lists</a>
             </li>
-                        <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="../../admin/recipes/recipe/">Add a recipe</a>
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{% url 'admin:recipes_recipe_add' %}">Add a recipe</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{% url 'admin:recipes_recipe_changelist' %}">Manage recipes</a>
+            </li>
           </ul>
         </div>
       </div>
