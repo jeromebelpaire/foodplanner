@@ -17,6 +17,20 @@ def home_view(request):
     return render(request, "recipes/home.html", context)
 
 
+# @login_required
+def get_recipes(request):
+    recipes = Recipe.objects.order_by("-created_on")[:9]
+    recipes_formatted = [
+        {
+            "title": recipe.title,
+            "slug": recipe.slug,
+            "image": str(recipe.image),
+        }
+        for recipe in recipes
+    ]
+    return JsonResponse({"recipes": recipes_formatted})
+
+
 @login_required
 def recipe_view(request, recipe_slug, guests=1):
     recipe = get_object_or_404(Recipe, slug=recipe_slug)
@@ -32,7 +46,7 @@ def recipe_view(request, recipe_slug, guests=1):
     return render(request, "recipes/recipe.html", context)
 
 
-@login_required
+# @login_required
 def get_formatted_ingredients(request, recipe_slug, guests=1):
     recipe = get_object_or_404(Recipe, slug=recipe_slug)
     recipe_ingredients = recipe.recipeingredient_set.all()
@@ -42,7 +56,21 @@ def get_formatted_ingredients(request, recipe_slug, guests=1):
         quantity = ri.quantity * guests
         scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
 
-    ingredients = {"recipe": recipe.title, "ingredients": scaled_ingredients}
+    ingredients = {"ingredients": scaled_ingredients}
+
+    return JsonResponse(ingredients)
+
+
+# @login_required
+def get_recipe_info(request, recipe_slug):
+    recipe = get_object_or_404(Recipe, slug=recipe_slug)
+
+    ingredients = {
+        "recipe": recipe.title,
+        "slug": recipe.slug,
+        "image": str(recipe.image),
+        "instructions": recipe.content,
+    }
 
     return JsonResponse(ingredients)
 
