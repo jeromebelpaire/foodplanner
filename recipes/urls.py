@@ -10,11 +10,11 @@ urlpatterns = [
     path("save_planned_recipe/", views.save_planned_recipe, name="save_planned_recipe"),
     path("save_planned_extra/", views.save_planned_extra, name="save_planned_extra"),
     path(
-        "get_formatted_ingredients/<slug:recipe_slug>/<int:guests>/",
+        "get_formatted_ingredients/<int:recipe_id>/<int:guests>/",
         views.get_formatted_ingredients,
         name="get_formatted_ingredients",
     ),
-    path("get_recipe_info/<slug:recipe_slug>/", views.get_recipe_info, name="get_recipe_info"),
+    path("get_recipe_info/<int:recipe_id>/", views.get_recipe_info, name="get_recipe_info"),
     path("get_planned_ingredients/", views.get_planned_ingredients, name="get_planned_ingredients"),
     path("create_grocery_list/", views.create_grocery_list, name="create_grocery_list"),
     path("delete_grocery_list/", views.delete_grocery_list, name="delete_grocery_list"),

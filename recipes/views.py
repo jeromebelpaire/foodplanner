@@ -23,6 +23,7 @@ def get_recipes(request):
     recipes_formatted = [
         {
             "title": recipe.title,
+            "id": recipe.id,
             "slug": recipe.slug,
             "image": str(recipe.image),
         }
@@ -47,8 +48,8 @@ def recipe_view(request, recipe_slug, guests=1):
 
 
 # @login_required
-def get_formatted_ingredients(request, recipe_slug, guests=1):
-    recipe = get_object_or_404(Recipe, slug=recipe_slug)
+def get_formatted_ingredients(request, recipe_id, guests=1):
+    recipe = get_object_or_404(Recipe, id=recipe_id)
     recipe_ingredients = recipe.recipeingredient_set.all()
 
     scaled_ingredients = []
@@ -62,8 +63,9 @@ def get_formatted_ingredients(request, recipe_slug, guests=1):
 
 
 # @login_required
-def get_recipe_info(request, recipe_slug):
-    recipe = get_object_or_404(Recipe, slug=recipe_slug)
+def get_recipe_info(request, recipe_id):
+    print("recipe_id ????", recipe_id)
+    recipe = get_object_or_404(Recipe, id=recipe_id)
 
     ingredients = {
         "recipe": recipe.title,
