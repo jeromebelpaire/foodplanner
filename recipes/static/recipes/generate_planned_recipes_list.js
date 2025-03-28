@@ -30,6 +30,7 @@ function generate_planned_recipes_list(data) {
 
 function deleteRecipe(deleteUrl) {
   const csrftoken = getCookie("csrftoken");
+  console.log("deleting with token: ", csrftoken);
   fetch(deleteUrl, {
     method: "DELETE",
     headers: {

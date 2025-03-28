@@ -163,7 +163,9 @@ AZURE_CUSTOM_DOMAIN = f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
 MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/media/"
 MEDIA_ROOT = BASE_DIR / "mediafiles"
 
-print(f"Env set to {DEBUG}")
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
+
+CORS_ALLOW_CREDENTIALS = True  # FIXME review

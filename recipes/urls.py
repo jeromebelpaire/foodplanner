@@ -2,13 +2,18 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("csrf/", views.get_csrf, name="get_csrf"),  # TODO check
+    path("login/", views.login_view, name="api_login"),  # TODO check
+    path("auth/status/", views.auth_status, name="auth_status"),  # TODO switch to root
     path("home/", views.home_view, name="home_view"),
     path("get_recipes/", views.get_recipes, name="get_recipes"),
+    path("get_ingredients/", views.get_ingredients, name="get_ingredients"),
     path("recipe/<slug:recipe_slug>/", views.recipe_view, name="recipe_uncounted_view"),
     path("recipe/<slug:recipe_slug>/<int:guests>/", views.recipe_view, name="recipe_view"),
     path("recipe_sum/", views.recipe_sum_view, name="recipe_sum_view"),
     path("save_planned_recipe/", views.save_planned_recipe, name="save_planned_recipe"),
     path("save_planned_extra/", views.save_planned_extra, name="save_planned_extra"),
+    path("get_grocery_lists", views.get_grocery_lists, name="get_grocery_lists"),
     path(
         "get_formatted_ingredients/<int:recipe_id>/<int:guests>/",
         views.get_formatted_ingredients,

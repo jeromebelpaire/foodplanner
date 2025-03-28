@@ -1,13 +1,45 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
+import json
 from django.urls import reverse
 
 from .forms import GroceryListForm, RecipeForm, ExtrasForm
 from .models import GroceryList, PlannedRecipe, Recipe, PlannedExtra, Ingredient
+
+
+@require_POST
+def login_view(request):
+    data = json.loads(request.body)
+    username = data.get("username")
+    password = data.get("password")
+    user = authenticate(request, username=username, password=password)
+    if user is not None:
+        login(request, user)
+        return JsonResponse({"detail": "Successfully logged in."})
+    else:
+        return JsonResponse({"detail": "Invalid credentials."}, status=401)
+
+
+@require_GET
+@ensure_csrf_cookie
+def get_csrf(request):
+    return JsonResponse({"detail": "CSRF cookie set"})
+
+
+@require_GET
+def auth_status(request):
+    if request.user.is_authenticated:
+        return JsonResponse({"authenticated": True})
+    else:
+        return JsonResponse({"authenticated": False}, status=401)
 
 
 @login_required
@@ -17,9 +49,9 @@ def home_view(request):
     return render(request, "recipes/home.html", context)
 
 
-# @login_required
+@login_required
 def get_recipes(request):
-    recipes = Recipe.objects.order_by("-created_on")[:9]
+    recipes = Recipe.objects.order_by("-created_on")
     recipes_formatted = [
         {
             "title": recipe.title,
@@ -30,6 +62,19 @@ def get_recipes(request):
         for recipe in recipes
     ]
     return JsonResponse({"recipes": recipes_formatted})
+
+
+@login_required
+def get_ingredients(request):
+    ingredients = Ingredient.objects.order_by("name")
+    ingredients_formatted = [
+        {
+            "title": ingredient.name,
+            "id": ingredient.id,
+        }
+        for ingredient in ingredients
+    ]
+    return JsonResponse({"ingredients": ingredients_formatted})
 
 
 @login_required
@@ -47,7 +92,7 @@ def recipe_view(request, recipe_slug, guests=1):
     return render(request, "recipes/recipe.html", context)
 
 
-# @login_required
+@login_required
 def get_formatted_ingredients(request, recipe_id, guests=1):
     recipe = get_object_or_404(Recipe, id=recipe_id)
     recipe_ingredients = recipe.recipeingredient_set.all()
@@ -62,9 +107,8 @@ def get_formatted_ingredients(request, recipe_id, guests=1):
     return JsonResponse(ingredients)
 
 
-# @login_required
+@login_required
 def get_recipe_info(request, recipe_id):
-    print("recipe_id ????", recipe_id)
     recipe = get_object_or_404(Recipe, id=recipe_id)
 
     ingredients = {
@@ -78,13 +122,20 @@ def get_recipe_info(request, recipe_id):
 
 
 @login_required
-@csrf_exempt
+# @csrf_exempt
 def create_grocery_list(request):
     if request.method == "POST":
         name = request.POST.get("name")
         grocery_list = GroceryList(name=name, user=request.user)
         grocery_list.save()
-        return JsonResponse({"message": "Grocery list created successfully!"}, status=201)
+        return JsonResponse(
+            {
+                "name": grocery_list.name,
+                "id": grocery_list.id,
+                "username": grocery_list.user.username,
+            },
+            status=201,
+        )
     else:
         return JsonResponse({"error": "Invalid request"}, status=400)
 
@@ -102,15 +153,36 @@ def generate_recipe_select_form(request):
         raise ValueError(f"Unkown grocery_list_id in: {request.POST}")
 
 
+def get_grocery_lists(request):
+    grocery_lists_raw = GroceryList.objects.filter(user=request.user)
+    grocery_lists = {
+        grocery_list_raw.id: {
+            "name": grocery_list_raw.name,
+            "id": grocery_list_raw.id,
+            "username": grocery_list_raw.user.username,
+        }
+        for _, grocery_list_raw in enumerate(grocery_lists_raw)
+    }
+    return JsonResponse(grocery_lists)
+
+
 @login_required
 def delete_grocery_list(request):
-    grocery_list_id = request.POST.get("grocery_list")  # Use POST instead of GET
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    grocery_list_id = data.get("grocery_list")
+    if not grocery_list_id:
+        return JsonResponse({"error": "Grocery list ID not provided"}, status=400)
+
     try:
         grocery_list = GroceryList.objects.get(id=grocery_list_id)
         grocery_list.delete()
         return JsonResponse({"success": True})
     except GroceryList.DoesNotExist:
-        return JsonResponse({"error": "GroceryList not found"}, status=404)  # Send an error response
+        return JsonResponse({"error": "GroceryList not found"}, status=404)
 
 
 @login_required
@@ -127,6 +199,7 @@ def recipe_sum_view(request):
 
 
 @login_required
+# @csrf_exempt
 def save_planned_recipe(request):
     if request.method == "POST":
         data = request.POST
@@ -143,6 +216,7 @@ def save_planned_recipe(request):
 
 
 @login_required
+# @csrf_exempt
 def save_planned_extra(request):
     if request.method == "POST":
         data = request.POST
@@ -231,6 +305,7 @@ def get_planned_extras(request):
 
 
 @login_required
+# @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_planned_recipe(request, planned_recipe_id):
     planned_recipe = get_object_or_404(PlannedRecipe, id=planned_recipe_id)
@@ -239,6 +314,7 @@ def delete_planned_recipe(request, planned_recipe_id):
 
 
 @login_required
+# @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_planned_extra(request, planned_extra_id):
     planned_extra = get_object_or_404(PlannedExtra, id=planned_extra_id)
