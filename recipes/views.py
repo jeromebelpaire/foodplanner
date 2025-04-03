@@ -178,7 +178,7 @@ def delete_grocery_list(request):
         return JsonResponse({"error": "Grocery list ID not provided"}, status=400)
 
     try:
-        grocery_list = GroceryList.objects.get(id=grocery_list_id)
+        grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
         grocery_list.delete()
         return JsonResponse({"success": True})
     except GroceryList.DoesNotExist:
@@ -235,7 +235,8 @@ def save_planned_extra(request):
 @login_required
 def get_planned_ingredients(request):
     grocery_list_id = request.GET.get("grocery_list")
-    grocery_list = GroceryList.objects.get(id=grocery_list_id)
+    # TODO replace filter by proper error codes
+    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
 
     planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
@@ -273,7 +274,7 @@ def get_planned_ingredients(request):
 @login_required
 def get_planned_recipes(request):
     grocery_list_id = request.GET.get("grocery_list")
-    grocery_list = GroceryList.objects.get(id=grocery_list_id)
+    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
 
     planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     planned_recipes_dict = [
@@ -290,7 +291,7 @@ def get_planned_recipes(request):
 @login_required
 def get_planned_extras(request):
     grocery_list_id = request.GET.get("grocery_list")
-    grocery_list = GroceryList.objects.get(id=grocery_list_id)
+    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
 
     planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
     planned_extras_dict = [
