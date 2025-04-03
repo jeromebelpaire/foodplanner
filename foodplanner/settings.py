@@ -86,23 +86,23 @@ WSGI_APPLICATION = "foodplanner.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("DBNAME"),
-#         "HOST": os.getenv("DBHOST"),
-#         "USER": os.getenv("DBUSER"),
-#         "PASSWORD": os.getenv("DBPASS"),
-#         "OPTIONS": {"sslmode": "require"},
-#     }
-# }
-
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DBNAME"),
+        "HOST": os.getenv("DBHOST"),
+        "USER": os.getenv("DBUSER"),
+        "PASSWORD": os.getenv("DBPASS"),
+        "OPTIONS": {"sslmode": "require"},
     }
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
 
 
 # Password validation
