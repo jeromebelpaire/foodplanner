@@ -1,18 +1,17 @@
-from django.contrib.auth.decorators import login_required
+import json
+
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.http import require_GET
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
-import json
 from django.urls import reverse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .forms import GroceryListForm, RecipeForm, ExtrasForm
-from .models import GroceryList, PlannedRecipe, Recipe, PlannedExtra, Ingredient
+from .forms import ExtrasForm, GroceryListForm, RecipeForm
+from .models import GroceryList, Ingredient, PlannedExtra, PlannedRecipe, Recipe
 
 
 @require_POST
@@ -31,7 +30,8 @@ def login_view(request):
 @require_GET
 @ensure_csrf_cookie
 def get_csrf(request):
-    return JsonResponse({"detail": "CSRF cookie set"})
+    token = get_token(request)
+    return JsonResponse({"csrfToken": token})
 
 
 @require_GET
@@ -122,7 +122,6 @@ def get_recipe_info(request, recipe_id):
 
 
 @login_required
-# @csrf_exempt
 def create_grocery_list(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -167,6 +166,7 @@ def get_grocery_lists(request):
 
 
 @login_required
+@require_http_methods(["DELETE"])
 def delete_grocery_list(request):
     try:
         data = json.loads(request.body)
@@ -199,7 +199,6 @@ def recipe_sum_view(request):
 
 
 @login_required
-# @csrf_exempt
 def save_planned_recipe(request):
     if request.method == "POST":
         data = request.POST
@@ -216,7 +215,6 @@ def save_planned_recipe(request):
 
 
 @login_required
-# @csrf_exempt
 def save_planned_extra(request):
     if request.method == "POST":
         data = request.POST
@@ -306,7 +304,6 @@ def get_planned_extras(request):
 
 
 @login_required
-# @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_planned_recipe(request, planned_recipe_id):
     planned_recipe = get_object_or_404(PlannedRecipe, id=planned_recipe_id)
@@ -315,7 +312,6 @@ def delete_planned_recipe(request, planned_recipe_id):
 
 
 @login_required
-# @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_planned_extra(request, planned_extra_id):
     planned_extra = get_object_or_404(PlannedExtra, id=planned_extra_id)

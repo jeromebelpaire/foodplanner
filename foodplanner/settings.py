@@ -32,6 +32,8 @@ DEBUG = os.getenv("DEBUG", "0").lower() in ["true", "t", "1"]
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS").split(" ")
 
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(" ")
+CORS_ALLOWED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(" ")
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS").lower() in ["true", "t", "1"]
 
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0").lower() in ["true", "t", "1"]
 if SECURE_SSL_REDIRECT:
@@ -50,6 +52,8 @@ INSTALLED_APPS = [
     "recipes",
 ]
 
+if DEBUG:
+    INSTALLED_APPS.append("sslserver")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -169,4 +173,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://icy-beach-0e5b00303.6.azurestaticapps.net",
 ]
 
-CORS_ALLOW_CREDENTIALS = True  # FIXME review
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True
