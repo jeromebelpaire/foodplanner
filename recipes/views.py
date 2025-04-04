@@ -1,18 +1,17 @@
-from django.contrib.auth.decorators import login_required
+import json
+
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.http import require_GET
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
-import json
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .forms import GroceryListForm, RecipeForm, ExtrasForm
-from .models import GroceryList, PlannedRecipe, Recipe, PlannedExtra, Ingredient
+from .forms import ExtrasForm, GroceryListForm, RecipeForm
+from .models import GroceryList, Ingredient, PlannedExtra, PlannedRecipe, Recipe
 
 
 @require_POST
@@ -31,7 +30,8 @@ def login_view(request):
 @require_GET
 @ensure_csrf_cookie
 def get_csrf(request):
-    return JsonResponse({"detail": "CSRF cookie set"})
+    token = get_token(request)
+    return JsonResponse({"csrfToken": token})
 
 
 @require_GET
