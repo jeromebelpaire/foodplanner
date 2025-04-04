@@ -166,6 +166,7 @@ MEDIA_ROOT = BASE_DIR / "mediafiles"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://icy-beach-0e5b00303.6.azurestaticapps.net",
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # FIXME review
