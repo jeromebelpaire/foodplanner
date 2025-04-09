@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+import datetime
 
 
 class Ingredient(models.Model):
@@ -55,12 +56,18 @@ class PlannedRecipe(models.Model):
     grocery_list = models.ForeignKey(GroceryList, related_name="items", on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="plannedrecipes")
     guests = models.IntegerField()
+    planned_on = models.DateField(blank=True, null=True)
 
     class Meta:
         get_latest_by = "timestamp"
 
     def __str__(self):
-        return f"{self.recipe.title} - {self.guests} guests"
+        if self.planned_on:
+            # TODO fix in frontend
+            formatted_date = f"{self.planned_on.strftime('%a')} {self.planned_on.day} {self.planned_on.strftime('%B')}"
+        else:
+            formatted_date = "Unplanned"
+        return f"{formatted_date} - {self.recipe.title} - {self.guests} guests"
 
 
 class PlannedExtra(models.Model):

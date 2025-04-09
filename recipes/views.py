@@ -69,7 +69,8 @@ def get_ingredients(request):
     ingredients = Ingredient.objects.order_by("name")
     ingredients_formatted = [
         {
-            "title": ingredient.name,
+            # TODO check
+            "title": f"{ingredient.name} ({ingredient.unit})",
             "id": ingredient.id,
         }
         for ingredient in ingredients
@@ -203,13 +204,19 @@ def save_planned_recipe(request):
     if request.method == "POST":
         data = request.POST
 
-        for grocery_list_id, recipe_id, guests in zip(
+        for grocery_list_id, recipe_id, guests, planned_on in zip(
             data.getlist("grocery_list"),
             data.getlist("recipes"),
             data.getlist("guests"),
+            data.getlist("planned_on"),
         ):
             recipe = Recipe.objects.get(pk=recipe_id)
-            PlannedRecipe.objects.create(grocery_list_id=grocery_list_id, recipe=recipe, guests=guests)
+            PlannedRecipe.objects.create(
+                grocery_list_id=grocery_list_id,
+                recipe=recipe,
+                guests=guests,
+                planned_on=planned_on if planned_on else None,
+            )
 
         return JsonResponse({"success": True})
 
@@ -274,7 +281,7 @@ def get_planned_recipes(request):
     grocery_list_id = request.GET.get("grocery_list")
     grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
 
-    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
+    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list).order_by("planned_on")
     planned_recipes_dict = [
         {
             "id": pr.id,
