@@ -36,4 +36,5 @@ urlpatterns = [
         views.generate_recipe_select_form,
         name="generate_recipe_select_form",
     ),
+    path("update_grocerylistitem_state/", views.update_grocerylistitem_state, name="update_grocerylistitem_state"),
 ]

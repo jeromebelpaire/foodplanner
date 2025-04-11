@@ -242,6 +242,24 @@ def save_planned_extra(request):
 
 
 @login_required
+def update_grocerylistitem_state(request):
+    if request.method != "PUT":
+        return JsonResponse({"error": f"Method: {request.method} not allowed"}, status=405)
+
+    data = json.loads(request.body)
+    grocery_list_id = data.get("grocery_list_id")
+    grocerylist_id = data.get("ingredient_id")
+    is_checked = data.get("is_checked")
+
+    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
+
+    planned_ingredient = GroceryListItem.objects.get(grocery_list=grocery_list, id=grocerylist_id)
+    planned_ingredient.is_checked = is_checked
+    planned_ingredient.save()
+    return JsonResponse({"status": "success"})
+
+
+@login_required
 def get_planned_ingredients(request):
     grocery_list_id = request.GET.get("grocery_list")
     grocery_list_items_object = GroceryListItem.objects.filter(grocery_list=grocery_list_id)
@@ -252,6 +270,7 @@ def get_planned_ingredients(request):
             "quantity": item.quantity,
             "unit": item.ingredient.unit,
             "from_recipes": item.from_recipes,
+            "is_checked": item.is_checked,
         }
         for item in grocery_list_items_object
     }
