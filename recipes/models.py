@@ -79,3 +79,13 @@ class PlannedExtra(models.Model):
 
     def __str__(self):
         return f"{self.ingredient.name} - {str(self.quantity).removesuffix('.0')} {self.ingredient.unit}"
+
+
+class GroceryListItem(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    grocery_list = models.ForeignKey(GroceryList, related_name="grocerylistitems", on_delete=models.CASCADE)
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT, related_name="grocerylistitems")
+    from_recipes = models.TextField()
+    quantity = models.FloatField()
+    is_checked = models.BooleanField(default=False)

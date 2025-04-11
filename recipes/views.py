@@ -11,7 +11,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import ExtrasForm, GroceryListForm, RecipeForm
-from .models import GroceryList, Ingredient, PlannedExtra, PlannedRecipe, Recipe
+from .models import GroceryList, Ingredient, PlannedExtra, PlannedRecipe, Recipe, GroceryListItem
 
 
 @require_POST
@@ -218,6 +218,8 @@ def save_planned_recipe(request):
                 planned_on=planned_on if planned_on else None,
             )
 
+        update_grocery_list_items(grocery_list_id=grocery_list_id, user=request.user)
+
         return JsonResponse({"success": True})
 
 
@@ -234,14 +236,35 @@ def save_planned_extra(request):
             ingredient = Ingredient.objects.get(pk=ingredient_id)
             PlannedExtra.objects.create(grocery_list_id=grocery_list_id, ingredient=ingredient, quantity=quantity)
 
+        update_grocery_list_items(grocery_list_id=grocery_list_id, user=request.user)
+
         return JsonResponse({"success": True})
 
 
 @login_required
 def get_planned_ingredients(request):
     grocery_list_id = request.GET.get("grocery_list")
-    # TODO replace filter by proper error codes
-    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
+    grocery_list_items_object = GroceryListItem.objects.filter(grocery_list=grocery_list_id)
+
+    grocery_list_items = {
+        item.id: {
+            "name": item.ingredient.name,
+            "quantity": item.quantity,
+            "unit": item.ingredient.unit,
+            "from_recipes": item.from_recipes,
+        }
+        for item in grocery_list_items_object
+    }
+
+    return JsonResponse(grocery_list_items)
+
+
+def update_grocery_list_items(grocery_list_id: int, user: str) -> None:
+    # TODO only update changed item
+    # TODO what if same ingredient, different unit?
+    GroceryListItem.objects.filter(grocery_list=grocery_list_id).delete()
+
+    grocery_list = GroceryList.objects.filter(user=user).get(id=grocery_list_id)
 
     planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
     planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
@@ -255,25 +278,33 @@ def get_planned_ingredients(request):
             quantity = ri.quantity * planned_recipe.guests
             if ri.ingredient.name in ingredients:
                 ingredients[ri.ingredient.name]["quantity"] += quantity
-                ingredients[ri.ingredient.name]["from_recipe"] += f" & {from_recipes_text}"
+                ingredients[ri.ingredient.name]["from_recipes"] += f" & {from_recipes_text}"
+
             else:
-                ingredients[ri.ingredient.name] = {}
+                ingredients[ri.ingredient.name] = {"ingredient_id": ri.ingredient.id}
                 ingredients[ri.ingredient.name]["quantity"] = quantity
                 ingredients[ri.ingredient.name]["unit"] = ri.ingredient.unit
-                ingredients[ri.ingredient.name]["from_recipe"] = from_recipes_text
+                ingredients[ri.ingredient.name]["from_recipes"] = from_recipes_text
 
     for pe in planned_extras:
         quantity = pe.quantity
         if pe.ingredient.name in ingredients:
             ingredients[pe.ingredient.name]["quantity"] += quantity
-            ingredients[pe.ingredient.name]["from_recipe"] += f" & Extras"
+            ingredients[pe.ingredient.name]["from_recipes"] += f" & Extras"
         else:
-            ingredients[pe.ingredient.name] = {}
+            ingredients[pe.ingredient.name] = {"ingredient_id": ri.ingredient.id}
             ingredients[pe.ingredient.name]["quantity"] = quantity
             ingredients[pe.ingredient.name]["unit"] = pe.ingredient.unit
-            ingredients[pe.ingredient.name]["from_recipe"] = f"Extras"
+            ingredients[pe.ingredient.name]["from_recipes"] = f"Extras"
 
-    return JsonResponse(ingredients)
+    for ingredient in ingredients.values():
+        GroceryListItem.objects.create(
+            grocery_list_id=grocery_list_id,
+            ingredient_id=ingredient["ingredient_id"],
+            from_recipes=ingredient["from_recipes"],
+            quantity=ingredient["quantity"],
+            is_checked=False,
+        )
 
 
 @login_required
@@ -307,6 +338,7 @@ def get_planned_extras(request):
         }
         for pr in planned_extras
     ]
+    # TODO check safe=False
     return JsonResponse(planned_extras_dict, safe=False)
 
 
