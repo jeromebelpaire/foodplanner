@@ -16,6 +16,25 @@ class RecipeAdmin(admin.ModelAdmin):
     search_fields = ["title", "content"]
     prepopulated_fields = {"slug": ("title",)}
 
+    def get_queryset(self, request):
+        qs = super(RecipeAdmin, self).get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        else:
+            return qs.filter(author=request.user)
+
+    def save_model(self, request, obj, form, change):
+        if not request.user.is_superuser:
+            obj.author = request.user
+        super().save_model(request, obj, form, change)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields["author"].initial = request.user
+        if not request.user.is_superuser:
+            form.base_fields["author"].disabled = True
+        return form
+
 
 class IngredientAdmin(admin.ModelAdmin):
     search_fields = ["name"]  # Enables search functionality for autocomplete_fields
