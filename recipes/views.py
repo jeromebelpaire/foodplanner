@@ -4,8 +4,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
-from django.shortcuts import get_object_or_404, render
-from django.template.loader import render_to_string
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -43,13 +42,6 @@ def auth_status(request):
 
 
 @login_required
-def home_view(request):
-    recipes = Recipe.objects.order_by("-created_on")[:9]
-    context = {"recipes": recipes}
-    return render(request, "recipes/home.html", context)
-
-
-@login_required
 def get_recipes(request):
     recipes = Recipe.objects.order_by("-created_on")
     recipes_formatted = [
@@ -76,21 +68,6 @@ def get_ingredients(request):
         for ingredient in ingredients
     ]
     return JsonResponse({"ingredients": ingredients_formatted})
-
-
-@login_required
-def recipe_view(request, recipe_slug, guests=1):
-    recipe = get_object_or_404(Recipe, slug=recipe_slug)
-    recipe_ingredients = recipe.recipeingredient_set.all()
-
-    scaled_ingredients = []
-    for ri in recipe_ingredients:
-        quantity = ri.quantity * guests
-        scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
-
-    context = {"recipe": recipe, "ingredients": scaled_ingredients}
-
-    return render(request, "recipes/recipe.html", context)
 
 
 @login_required
@@ -140,19 +117,6 @@ def create_grocery_list(request):
         return JsonResponse({"error": "Invalid request"}, status=400)
 
 
-def generate_recipe_select_form(request):
-    # TODO make DRY
-    if "grocery_list" in request.POST:
-        # Create a new RecipeForm populated with the recipes from the selected grocery list
-        recipe_form = RecipeForm(initial={"recipes": Recipe.objects.all()})
-        extras_form = ExtrasForm(initial={"ingredients": Ingredient.objects.all()})
-        recipe_form_html = render_to_string("recipes/recipe_form.html", {"form": recipe_form}, request=request)
-        extras_form_html = render_to_string("recipes/extras_form.html", {"form": extras_form}, request=request)
-        return JsonResponse({"recipe_form_html": recipe_form_html, "extras_form_html": extras_form_html})
-    else:
-        raise ValueError(f"Unkown grocery_list_id in: {request.POST}")
-
-
 def get_grocery_lists(request):
     grocery_lists_raw = GroceryList.objects.filter(user=request.user)
     grocery_lists = {
@@ -184,19 +148,6 @@ def delete_grocery_list(request):
         return JsonResponse({"success": True})
     except GroceryList.DoesNotExist:
         return JsonResponse({"error": "GroceryList not found"}, status=404)
-
-
-@login_required
-def recipe_sum_view(request):
-    # First, initialize both forms
-    grocery_list_form = GroceryListForm(user=request.user)
-    recipe_form = RecipeForm()
-
-    return render(
-        request,
-        "recipes/recipe_sum.html",
-        {"grocery_list_form": grocery_list_form, "recipe_form": recipe_form},
-    )
 
 
 @login_required

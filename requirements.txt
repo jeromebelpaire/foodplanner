@@ -4,5 +4,6 @@ azure-storage-blob==12.17.0
 django-storages==1.13.2
 django-sslserver
 django-cors-headers
+djangorestframework
 python-dotenv
 psycopg2
