@@ -25,8 +25,8 @@ urlpatterns = (
     [
         path("", RedirectView.as_view(url=reverse_lazy("home_view")), name="index"),
         path("admin/", admin.site.urls),
-        path("recipes/", include("recipes.urls")),
-        path("api/", include("recipes.api_urls")),  # Include your API URLs
+        path("recipes/", include("apps.recipes.urls")),
+        path("api/", include("apps.recipes.api_urls")),  # Include your API URLs
         path("accounts/", include("django.contrib.auth.urls")),
     ]
     + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
