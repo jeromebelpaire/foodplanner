@@ -23,11 +23,13 @@ from django.views.generic.base import RedirectView
 
 urlpatterns = (
     [
-        path("", RedirectView.as_view(url=reverse_lazy("home_view")), name="index"),
+        path("", RedirectView.as_view(url=reverse_lazy("admin:index")), name="index"),
         path("admin/", admin.site.urls),
-        path("recipes/", include("apps.recipes.urls")),
-        path("api/", include("apps.recipes.api_urls")),  # Include your API URLs
         path("accounts/", include("django.contrib.auth.urls")),
+        path("api/", include("apps.core.urls")),
+        path("api/recipes/", include("apps.recipes.urls")),
+        path("api/ingredients/", include("apps.ingredients.urls")),
+        path("api/groceries/", include("apps.groceries.urls")),
     ]
     + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -50,7 +50,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "apps.core",
     "apps.recipes",
+    "apps.ingredients",
+    "apps.groceries",
 ]
 
 if DEBUG:

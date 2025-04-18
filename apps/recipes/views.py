@@ -1,328 +1,118 @@
-import json
-
-from django.contrib.auth import authenticate, login
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.middleware.csrf import get_token
+from rest_framework import viewsets, permissions, status, generics
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
+from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
-
-from .forms import ExtrasForm, GroceryListForm, RecipeForm
-from .models import GroceryList, Ingredient, PlannedExtra, PlannedRecipe, Recipe, GroceryListItem
-
-
-@require_POST
-def login_view(request):
-    data = json.loads(request.body)
-    username = data.get("username")
-    password = data.get("password")
-    user = authenticate(request, username=username, password=password)
-    if user is not None:
-        login(request, user)
-        return JsonResponse({"detail": "Successfully logged in."})
-    else:
-        return JsonResponse({"detail": "Invalid credentials."}, status=401)
-
-
-@require_GET
-@ensure_csrf_cookie
-def get_csrf(request):
-    token = get_token(request)
-    return JsonResponse({"csrfToken": token})
-
-
-@require_GET
-def auth_status(request):
-    if request.user.is_authenticated:
-        return JsonResponse({"authenticated": True})
-    else:
-        return JsonResponse({"authenticated": False}, status=401)
-
-
-@login_required
-def get_recipes(request):
-    recipes = Recipe.objects.order_by("-created_on")
-    recipes_formatted = [
-        {
-            "title": recipe.title,
-            "id": recipe.id,
-            "slug": recipe.slug,
-            "image": str(recipe.image),
-        }
-        for recipe in recipes
-    ]
-    return JsonResponse({"recipes": recipes_formatted})
-
-
-@login_required
-def get_ingredients(request):
-    ingredients = Ingredient.objects.order_by("name")
-    ingredients_formatted = [
-        {
-            # TODO check
-            "title": f"{ingredient.name} ({ingredient.unit})",
-            "id": ingredient.id,
-        }
-        for ingredient in ingredients
-    ]
-    return JsonResponse({"ingredients": ingredients_formatted})
-
-
-@login_required
-def get_formatted_ingredients(request, recipe_id, guests=1):
-    recipe = get_object_or_404(Recipe, id=recipe_id)
-    recipe_ingredients = recipe.recipeingredient_set.all()
-
-    scaled_ingredients = []
-    for ri in recipe_ingredients:
-        quantity = ri.quantity * guests
-        scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
-
-    ingredients = {"ingredients": scaled_ingredients}
-
-    return JsonResponse(ingredients)
-
-
-@login_required
-def get_recipe_info(request, recipe_id):
-    recipe = get_object_or_404(Recipe, id=recipe_id)
-
-    ingredients = {
-        "recipe": recipe.title,
-        "slug": recipe.slug,
-        "image": str(recipe.image),
-        "instructions": recipe.content,
-    }
-
-    return JsonResponse(ingredients)
-
-
-@login_required
-def create_grocery_list(request):
-    if request.method == "POST":
-        name = request.POST.get("name")
-        grocery_list = GroceryList(name=name, user=request.user)
-        grocery_list.save()
-        return JsonResponse(
-            {
-                "name": grocery_list.name,
-                "id": grocery_list.id,
-                "username": grocery_list.user.username,
-            },
-            status=201,
-        )
-    else:
-        return JsonResponse({"error": "Invalid request"}, status=400)
-
-
-def get_grocery_lists(request):
-    grocery_lists_raw = GroceryList.objects.filter(user=request.user)
-    grocery_lists = {
-        grocery_list_raw.id: {
-            "name": grocery_list_raw.name,
-            "id": grocery_list_raw.id,
-            "username": grocery_list_raw.user.username,
-        }
-        for _, grocery_list_raw in enumerate(grocery_lists_raw)
-    }
-    return JsonResponse(grocery_lists)
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def delete_grocery_list(request):
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    grocery_list_id = data.get("grocery_list")
-    if not grocery_list_id:
-        return JsonResponse({"error": "Grocery list ID not provided"}, status=400)
-
-    try:
-        grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
-        grocery_list.delete()
-        return JsonResponse({"success": True})
-    except GroceryList.DoesNotExist:
-        return JsonResponse({"error": "GroceryList not found"}, status=404)
-
-
-@login_required
-def save_planned_recipe(request):
-    if request.method == "POST":
-        data = request.POST
-
-        for grocery_list_id, recipe_id, guests, planned_on in zip(
-            data.getlist("grocery_list"),
-            data.getlist("recipes"),
-            data.getlist("guests"),
-            data.getlist("planned_on"),
-        ):
-            recipe = Recipe.objects.get(pk=recipe_id)
-            PlannedRecipe.objects.create(
-                grocery_list_id=grocery_list_id,
-                recipe=recipe,
-                guests=guests,
-                planned_on=planned_on if planned_on else None,
-            )
-
-        update_grocery_list_items(grocery_list_id=grocery_list_id, user=request.user)
-
-        return JsonResponse({"success": True})
-
-
-@login_required
-def save_planned_extra(request):
-    if request.method == "POST":
-        data = request.POST
-
-        for grocery_list_id, ingredient_id, quantity in zip(
-            data.getlist("grocery_list"),
-            data.getlist("extras"),
-            data.getlist("quantity"),
-        ):
-            ingredient = Ingredient.objects.get(pk=ingredient_id)
-            PlannedExtra.objects.create(grocery_list_id=grocery_list_id, ingredient=ingredient, quantity=quantity)
-
-        update_grocery_list_items(grocery_list_id=grocery_list_id, user=request.user)
-
-        return JsonResponse({"success": True})
-
-
-@login_required
-def update_grocerylistitem_state(request):
-    if request.method != "PUT":
-        return JsonResponse({"error": f"Method: {request.method} not allowed"}, status=405)
-
-    data = json.loads(request.body)
-    grocery_list_id = data.get("grocery_list_id")
-    grocerylist_id = data.get("ingredient_id")
-    is_checked = data.get("is_checked")
-
-    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
-
-    planned_ingredient = GroceryListItem.objects.get(grocery_list=grocery_list, id=grocerylist_id)
-    planned_ingredient.is_checked = is_checked
-    planned_ingredient.save()
-    return JsonResponse({"status": "success"})
-
-
-@login_required
-def get_planned_ingredients(request):
-    grocery_list_id = request.GET.get("grocery_list")
-    grocery_list_items_object = GroceryListItem.objects.filter(grocery_list=grocery_list_id)
-
-    grocery_list_items = {
-        item.id: {
-            "name": item.ingredient.name,
-            "quantity": item.quantity,
-            "unit": item.ingredient.unit,
-            "from_recipes": item.from_recipes,
-            "is_checked": item.is_checked,
-        }
-        for item in grocery_list_items_object
-    }
-
-    return JsonResponse(grocery_list_items)
-
-
-def update_grocery_list_items(grocery_list_id: int, user: str) -> None:
-    # TODO only update changed item
-    # TODO what if same ingredient, different unit?
-    GroceryListItem.objects.filter(grocery_list=grocery_list_id).delete()
-
-    grocery_list = GroceryList.objects.filter(user=user).get(id=grocery_list_id)
-
-    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
-    planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
-    ingredients = {}
-
-    # Iterate over all planned recipes and planned extrats
-    for planned_recipe in planned_recipes:
-        from_recipes_text = f"{planned_recipe.guests}p {planned_recipe.recipe.title}"
-
-        for ri in planned_recipe.recipe.recipeingredient_set.all():
-            quantity = ri.quantity * planned_recipe.guests
-            if ri.ingredient.name in ingredients:
-                ingredients[ri.ingredient.name]["quantity"] += quantity
-                ingredients[ri.ingredient.name]["from_recipes"] += f" & {from_recipes_text}"
-
-            else:
-                ingredients[ri.ingredient.name] = {"ingredient_id": ri.ingredient.id}
-                ingredients[ri.ingredient.name]["quantity"] = quantity
-                ingredients[ri.ingredient.name]["unit"] = ri.ingredient.unit
-                ingredients[ri.ingredient.name]["from_recipes"] = from_recipes_text
-
-    for pe in planned_extras:
-        quantity = pe.quantity
-        if pe.ingredient.name in ingredients:
-            ingredients[pe.ingredient.name]["quantity"] += quantity
-            ingredients[pe.ingredient.name]["from_recipes"] += f" & Extras"
-        else:
-            ingredients[pe.ingredient.name] = {"ingredient_id": ri.ingredient.id}
-            ingredients[pe.ingredient.name]["quantity"] = quantity
-            ingredients[pe.ingredient.name]["unit"] = pe.ingredient.unit
-            ingredients[pe.ingredient.name]["from_recipes"] = f"Extras"
-
-    for ingredient in ingredients.values():
-        GroceryListItem.objects.create(
-            grocery_list_id=grocery_list_id,
-            ingredient_id=ingredient["ingredient_id"],
-            from_recipes=ingredient["from_recipes"],
-            quantity=ingredient["quantity"],
-            is_checked=False,
-        )
-
-
-@login_required
-def get_planned_recipes(request):
-    grocery_list_id = request.GET.get("grocery_list")
-    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
-
-    planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list).order_by("planned_on")
-    planned_recipes_dict = [
-        {
-            "id": pr.id,
-            "str": str(pr),
-            "delete_url": reverse("delete_planned_recipe", args=[pr.id]),
-        }
-        for pr in planned_recipes
-    ]
-    return JsonResponse(planned_recipes_dict, safe=False)
-
-
-@login_required
-def get_planned_extras(request):
-    grocery_list_id = request.GET.get("grocery_list")
-    grocery_list = GroceryList.objects.filter(user=request.user).get(id=grocery_list_id)
-
-    planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
-    planned_extras_dict = [
-        {
-            "id": pr.id,
-            "str": str(pr),
-            "delete_url": reverse("delete_planned_extra", args=[pr.id]),
-        }
-        for pr in planned_extras
-    ]
-    # TODO check safe=False
-    return JsonResponse(planned_extras_dict, safe=False)
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def delete_planned_recipe(request, planned_recipe_id):
-    planned_recipe = get_object_or_404(PlannedRecipe, id=planned_recipe_id)
-    planned_recipe.delete()
-    return JsonResponse({"status": "success"}, status=200)
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def delete_planned_extra(request, planned_extra_id):
-    planned_extra = get_object_or_404(PlannedExtra, id=planned_extra_id)
-    planned_extra.delete()
-    return JsonResponse({"status": "success"}, status=200)
+from .models import Recipe
+from .serializers import (
+    SimpleRecipeSerializer,
+    RecipeDetailSerializer,
+)
+
+# Using SessionAuthentication (adjust if using TokenAuthentication)
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+
+
+class RecipeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint that allows recipes to be viewed.
+    """
+
+    authentication_classes = [SessionAuthentication]  # Example
+    permission_classes = [IsAuthenticated]  # Example: Must be logged in to view
+    queryset = Recipe.objects.all().order_by("-created_on")
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return SimpleRecipeSerializer  # Use simple view for list
+        return RecipeDetailSerializer  # Use detailed view for retrieve
+
+    @action(detail=True, methods=["get"])
+    def formatted_ingredients(self, request, pk=None):
+        """
+        Returns scaled ingredients for a given recipe and number of guests.
+        Example: /api/recipes/1/formatted_ingredients/?guests=4
+        """
+        recipe = self.get_object()
+        try:
+            guests = int(request.query_params.get("guests", 1))
+        except ValueError:
+            return Response({"error": "Invalid 'guests' parameter."}, status=status.HTTP_400_BAD_REQUEST)
+
+        recipe_ingredients = recipe.recipeingredient_set.all()
+        scaled_ingredients = []
+        for ri in recipe_ingredients:
+            quantity = ri.quantity * guests
+            scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
+
+        return Response({"ingredients": scaled_ingredients})
+
+
+# # --- Helper Function (Keep or move?) ---
+# # This function is complex. It might be better suited as a method on the GroceryList model
+# # or a separate service function. Triggering it from perform_create/perform_destroy
+# # in PlannedRecipe/PlannedExtra ViewSets is a good approach.
+# def update_grocery_list_items(grocery_list_id: int, user: User) -> None:
+#     """
+#     Recalculates and saves all GroceryListItem objects for a given grocery list
+#     based on the associated PlannedRecipe and PlannedExtra items.
+#     """
+#     # Ensure we have the correct user object and they own the list
+#     grocery_list = get_object_or_404(GroceryList, id=grocery_list_id, user=user)
+
+#     # Clear existing items for this list
+#     GroceryListItem.objects.filter(grocery_list=grocery_list).delete()
+
+#     planned_recipes = PlannedRecipe.objects.filter(grocery_list=grocery_list)
+#     planned_extras = PlannedExtra.objects.filter(grocery_list=grocery_list)
+#     ingredients = {}  # Key: ingredient ID, Value: dict with details
+
+#     # Aggregate ingredients from planned recipes
+#     for planned_recipe in planned_recipes:
+#         from_recipes_text = f"{planned_recipe.guests}p {planned_recipe.recipe.title}"
+#         # Use RecipeIngredient through Recipe model
+#         for ri in planned_recipe.recipe.recipeingredient_set.all():
+#             quantity = ri.quantity * planned_recipe.guests
+#             ingredient_id = ri.ingredient.id
+
+#             if ingredient_id in ingredients:
+#                 # TODO: Handle unit conversions if units differ? Assume same unit for now.
+#                 ingredients[ingredient_id]["quantity"] += quantity
+#                 ingredients[ingredient_id]["from_recipes"].append(from_recipes_text)
+#             else:
+#                 ingredients[ingredient_id] = {
+#                     "ingredient_obj": ri.ingredient,  # Store the object for later use
+#                     "quantity": quantity,
+#                     "from_recipes": [from_recipes_text],  # Store as list
+#                 }
+
+#     # Aggregate ingredients from planned extras
+#     for pe in planned_extras:
+#         ingredient_id = pe.ingredient.id
+#         from_recipes_text = "Extras"
+
+#         if ingredient_id in ingredients:
+#             # TODO: Handle unit conversions if units differ? Assume same unit for now.
+#             ingredients[ingredient_id]["quantity"] += pe.quantity
+#             if from_recipes_text not in ingredients[ingredient_id]["from_recipes"]:
+#                 ingredients[ingredient_id]["from_recipes"].append(from_recipes_text)
+#         else:
+#             ingredients[ingredient_id] = {
+#                 "ingredient_obj": pe.ingredient,
+#                 "quantity": pe.quantity,
+#                 "from_recipes": [from_recipes_text],
+#             }
+
+#     # Create new GroceryListItem objects
+#     for ingredient_id, data in ingredients.items():
+#         GroceryListItem.objects.create(
+#             grocery_list=grocery_list,
+#             ingredient=data["ingredient_obj"],
+#             # Join the list of sources with ' & '
+#             from_recipes=" & ".join(sorted(list(set(data["from_recipes"])))),
+#             quantity=data["quantity"],
+#             is_checked=False,  # Default to unchecked
+#         )
