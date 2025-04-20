@@ -7,6 +7,20 @@ from rest_framework.views import APIView
 User = get_user_model()  # Get the active user model
 
 
+class IsAuthorOrSuperuser(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of an object or superusers to edit it.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any authenticated user
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Write permissions are only allowed to the author or superusers
+        return obj.author == request.user or request.user.is_superuser
+
+
 class CsrfTokenView(APIView):
     """Provides the CSRF token (if using SessionAuthentication)."""
 
@@ -32,8 +46,7 @@ class AuthStatusView(APIView):
             response_data["user"] = {
                 "id": request.user.id,
                 "username": request.user.username,
-                # Avoid sending email unless explicitly needed by the frontend startup
-                # 'email': request.user.email,
+                "is_superuser": request.user.is_superuser,
             }
         return Response(response_data)
 
@@ -60,7 +73,11 @@ class LoginView(APIView):
             return Response(
                 {
                     "detail": "Successfully logged in.",
-                    "user": {"id": user.id, "username": user.username},
+                    "user": {
+                        "id": user.id,
+                        "username": user.username,
+                        "is_superuser": request.user.is_superuser,
+                    },
                 }
             )
         else:
