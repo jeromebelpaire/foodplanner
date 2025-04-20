@@ -44,7 +44,11 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source="author.username", read_only=True)
     # Use the RecipeIngredientSerializer for the nested relationship
     # Use source='recipe_ingredients' based on the related_name in RecipeIngredient model
-    recipe_ingredients = RecipeIngredientSerializer(many=True, read_only=True)  # Read-only nested for now
+    recipe_ingredients = RecipeIngredientSerializer(
+        many=True,
+        read_only=True,
+        source="recipeingredient_set",
+    )  # Read-only nested for now
 
     class Meta:
         model = Recipe
