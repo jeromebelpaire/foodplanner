@@ -20,15 +20,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAuthorOrSuperuser]
 
     def get_queryset(self):
-        # For list and retrieve actions, show all recipes
-        if self.action in ["list", "retrieve", "formatted_ingredients"]:
-            return Recipe.objects.all().order_by("-created_on")
-
-        if self.request.user.is_superuser:
-            return Recipe.objects.all().order_by("-created_on")
-
-        else:
+        # If the client requests only their own recipes via the query parameter "mine"
+        if self.request.query_params.get("mine", "").lower() == "true":
             return Recipe.objects.filter(author=self.request.user).order_by("-created_on")
+        # Otherwise, return all the recipes. You can adjust permissions as needed.
+        return Recipe.objects.all().order_by("-created_on")
 
     def get_serializer_class(self):
         if self.action == "list":

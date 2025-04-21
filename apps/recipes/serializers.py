@@ -43,6 +43,7 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeDetailSerializer(serializers.ModelSerializer):
+    remove_image = serializers.BooleanField(required=False)
     author_username = serializers.CharField(source="author.username", read_only=True)
     recipe_ingredients = RecipeIngredientSerializer(
         many=True,
@@ -62,6 +63,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             "updated_on",
             "image",
             "recipe_ingredients",
+            "remove_image",
         ]
         read_only_fields = ["slug", "author_username", "created_on", "updated_on"]
 
@@ -76,7 +78,6 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                     data=ingredients_list, many=True, context=self.context
                 )
                 ingredient_serializer.is_valid(raise_exception=True)
-                # Inject the validated data under the correct source name
                 data["recipeingredient_set"] = ingredient_serializer.validated_data
             except json.JSONDecodeError:
                 raise serializers.ValidationError({"recipe_ingredients": "Invalid JSON format"})
@@ -92,6 +93,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         return validated_data
 
     def create(self, validated_data):
+        validated_data.pop("remove_image", None)
         ingredients = validated_data.pop("recipeingredient_set", [])
         validated_data = self._set_author_and_slug(validated_data)
         recipe = Recipe.objects.create(**validated_data)
@@ -100,8 +102,12 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients = validated_data.pop("recipeingredient_set", None)
+        remove_image = validated_data.pop("remove_image", False)
+        if remove_image and instance.image:
+            instance.image.delete(save=False)
+            validated_data["image"] = None
         # let the parent handle simple fields & slug
+        ingredients = validated_data.pop("recipeingredient_set", None)
         instance = super().update(instance, validated_data)
         if ingredients is not None:
             # replace all ingredients in one shot
