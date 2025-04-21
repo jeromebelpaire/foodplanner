@@ -44,13 +44,11 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
 
 class RecipeDetailSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source="author.username", read_only=True)
-    # Use the RecipeIngredientSerializer for the nested relationship
-    # Use source='recipe_ingredients' based on the related_name in RecipeIngredient model
     recipe_ingredients = RecipeIngredientSerializer(
         many=True,
-        read_only=True,
-        source="recipeingredient_set",  # TODO review
-    )  # Read-only nested for now
+        source="recipeingredient_set",
+        required=False,
+    )
 
     class Meta:
         model = Recipe
@@ -67,83 +65,47 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["slug", "author_username", "created_on", "updated_on"]
 
-    def create(self, validated_data):
-        # Get the raw JSON string from the input data if present for create
-        ingredients_json = self.initial_data.get("recipe_ingredients")
-        ingredients_data = None
-        if ingredients_json:
+    def validate(self, data):
+        # Parse and validate recipe_ingredients from initial_data (because data doesn't have it)
+        # This is due to having a multipart/form-data request for the image upload
+        ingredients_raw = self.initial_data.get("recipe_ingredients")
+        if ingredients_raw:
             try:
-                ingredients_data = json.loads(ingredients_json)
-                if not isinstance(ingredients_data, list):
-                    raise serializers.ValidationError("recipe_ingredients must be a list.")
+                ingredients_list = json.loads(ingredients_raw)
+                ingredient_serializer = RecipeIngredientSerializer(
+                    data=ingredients_list, many=True, context=self.context
+                )
+                ingredient_serializer.is_valid(raise_exception=True)
+                # Inject the validated data under the correct source name
+                data["recipeingredient_set"] = ingredient_serializer.validated_data
             except json.JSONDecodeError:
-                raise serializers.ValidationError("Invalid JSON format for recipe_ingredients.")
+                raise serializers.ValidationError({"recipe_ingredients": "Invalid JSON format"})
 
-        # Create the recipe instance
-        validated_data["slug"] = slugify(validated_data["title"])
+        return data
+
+    def _set_author_and_slug(self, validated_data):
+        """Helper to set author and slug, common for create/update."""
+        if "title" in validated_data:
+            validated_data["slug"] = slugify(validated_data["title"])
         if "author" not in validated_data and "request" in self.context:
             validated_data["author"] = self.context["request"].user
-        # Ensure 'recipe_ingredients' (the serializer field) is not passed to Recipe.objects.create
-        validated_data.pop("recipe_ingredients", None)  # Remove if present from read operation leftovers
-        validated_data.pop("recipeingredient_set", None)  # Remove if present
+        return validated_data
 
+    def create(self, validated_data):
+        ingredients = validated_data.pop("recipeingredient_set", [])
+        validated_data = self._set_author_and_slug(validated_data)
         recipe = Recipe.objects.create(**validated_data)
-
-        # Create ingredients if data was provided
-        if ingredients_data:
-            for ingredient_item in ingredients_data:
-                if "ingredient_id" in ingredient_item and "quantity" in ingredient_item:
-                    RecipeIngredient.objects.create(
-                        recipe=recipe,
-                        ingredient_id=ingredient_item["ingredient_id"],
-                        quantity=ingredient_item["quantity"],
-                    )
-                else:
-                    print(f"Skipping ingredient item during creation due to missing data: {ingredient_item}")
-
+        for item in ingredients:
+            RecipeIngredient.objects.create(recipe=recipe, **item)
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients_json = self.initial_data.get("recipe_ingredients")  # Get raw data from form
-        ingredients_data = None
-        if ingredients_json:
-            try:
-                ingredients_data = json.loads(ingredients_json)
-                # Basic validation: ensure it's a list
-                if not isinstance(ingredients_data, list):
-                    raise serializers.ValidationError("recipe_ingredients must be a list.")
-                # Optional: Deeper validation of list items if needed
-            except json.JSONDecodeError:
-                raise serializers.ValidationError("Invalid JSON format for recipe_ingredients.")
-
-        # Update recipe fields
-        instance.title = validated_data.get("title", instance.title)
-        instance.content = validated_data.get("content", instance.content)
-        # Handle image removal/update (ensure your backend handles image field updates correctly)
-        # If 'image' is not in validated_data, it means no new file was uploaded.
-        # If you need to handle image *removal*, the frontend needs to send a specific signal
-        # (like `image=null` or an empty string) and the backend needs to interpret it.
-        # For now, we assume validated_data handles new uploads correctly.
-        instance.image = validated_data.get("image", instance.image)  # TODO Check if this logic is sufficient
-        # Update slug only if title changed
-        if "title" in validated_data:
-            instance.slug = slugify(validated_data["title"])
-        instance.save()
-
-        # Handle ingredients update using the parsed data
-        if ingredients_data is not None:  # Process if data was provided and parsed
-            instance.recipeingredient_set.all().delete()  # Clear existing
-            for ingredient_item in ingredients_data:
-                # Ensure required fields are present in each item
-                if "ingredient_id" in ingredient_item and "quantity" in ingredient_item:
-                    RecipeIngredient.objects.create(
-                        recipe=instance,
-                        ingredient_id=ingredient_item["ingredient_id"],
-                        quantity=ingredient_item["quantity"],
-                    )
-                else:
-                    # Handle cases with missing data, maybe raise validation error or log warning
-                    print(f"Skipping ingredient item due to missing data: {ingredient_item}")
-                    # Alternatively: raise serializers.ValidationError(f"Missing data in ingredient item: {ingredient_item}")
-
+        ingredients = validated_data.pop("recipeingredient_set", None)
+        # let the parent handle simple fields & slug
+        instance = super().update(instance, validated_data)
+        if ingredients is not None:
+            # replace all ingredients in one shot
+            instance.recipeingredient_set.all().delete()
+            for item in ingredients:
+                RecipeIngredient.objects.create(recipe=instance, **item)
         return instance
