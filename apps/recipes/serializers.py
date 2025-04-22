@@ -1,4 +1,5 @@
 import json
+import nh3
 
 from django.utils.text import slugify
 from rest_framework import serializers
@@ -42,6 +43,12 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ["slug", "author_username", "created_on"]
 
 
+class SanitizedHtmlField(serializers.CharField):
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        return nh3.clean(value) if value else value
+
+
 class RecipeDetailSerializer(serializers.ModelSerializer):
     remove_image = serializers.BooleanField(required=False)
     author_username = serializers.CharField(source="author.username", read_only=True)
@@ -50,6 +57,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         source="recipeingredient_set",
         required=False,
     )
+    content = SanitizedHtmlField()
 
     class Meta:
         model = Recipe
