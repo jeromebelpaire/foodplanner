@@ -1,11 +1,11 @@
-django==4.1.4
+django==4.2.20
 Pillow==9.5.0
 azure-storage-blob==12.17.0
 django-storages==1.13.2
 django-filter==25.1
+djangorestframework==3.16.0
 django-sslserver
 django-cors-headers
-djangorestframework
 python-dotenv
 psycopg2
-nh3
+nh3==0.2.21
