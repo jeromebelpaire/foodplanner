@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.middleware.csrf import get_token
-from rest_framework import permissions, status
+from rest_framework import permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -100,3 +100,55 @@ class LogoutView(APIView):
         # response.delete_cookie(settings.CSRF_COOKIE_NAME) # If needed
 
         return response
+
+
+# Serializer for User creation
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    confirm_password = serializers.CharField(write_only=True, required=True, label="Confirm password")
+
+    class Meta:
+        model = User
+        fields = ("id", "username", "password", "email", "first_name", "last_name", "confirm_password")
+        extra_kwargs = {
+            "email": {"required": True, "allow_blank": False},
+            "first_name": {"required": False, "allow_blank": True},
+            "last_name": {"required": False, "allow_blank": True},
+        }
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs.pop("confirm_password"):
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data["email"],
+            password=validated_data["password"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+        )
+        return user
+
+
+class SignupView(APIView):
+    """
+    API View for user signup. Creates a new user.
+    Expects 'username', 'password', 'email', 'first_name', 'last_name'.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                {
+                    "detail": "User created successfully.",
+                    "user": UserSerializer(user, context={"request": request}).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
