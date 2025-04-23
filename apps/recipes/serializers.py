@@ -36,6 +36,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 class SimpleRecipeSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source="author.username", read_only=True)
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -50,6 +51,9 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
             "rating_count",
         ]
         read_only_fields = ["slug", "author_username", "created_on"]
+
+    def get_average_rating(self, obj):
+        return obj.average_rating / 2 if obj.average_rating is not None else None
 
 
 class SanitizedHtmlField(serializers.CharField):
@@ -67,6 +71,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         required=False,
     )
     content = SanitizedHtmlField()
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -85,6 +90,9 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             "remove_image",
         ]
         read_only_fields = ["slug", "author_username", "created_on", "updated_on"]
+
+    def get_average_rating(self, obj):
+        return obj.average_rating / 2 if obj.average_rating is not None else None
 
     def validate(self, data):
         # Parse and validate recipe_ingredients from initial_data (because data doesn't have it)

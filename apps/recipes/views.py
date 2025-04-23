@@ -5,12 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Recipe, RecipeRating, RecipeIngredient
+from .models import Recipe, RecipeRating
 from .serializers import (
     RecipeDetailSerializer,
     SimpleRecipeSerializer,
     RecipeRatingSerializer,
-    RecipeIngredientSerializer,
 )
 from .services import update_recipe_ratings
 from .permissions import IsAuthorOrReadOnly

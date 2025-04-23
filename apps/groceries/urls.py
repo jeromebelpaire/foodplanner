@@ -12,10 +12,3 @@ router.register(r"items", views.GroceryListItemViewSet, basename="grocerylistite
 urlpatterns = [
     path("", include(router.urls)),
 ]
-# Example URLs generated:
-# /api/groceries/lists/
-# /api/groceries/lists/{pk}/
-# /api/groceries/planned-recipes/?grocery_list={list_pk}
-# /api/groceries/planned-extras/?grocery_list={list_pk}
-# /api/groceries/items/?grocery_list={list_pk}
-# /api/groceries/items/{item_pk}/ (for PATCH)
