@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from apps.ingredients.serializers import IngredientSerializer
 
-from .models import Recipe, RecipeIngredient
+from .models import Recipe, RecipeIngredient, RecipeRating
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
@@ -39,7 +39,16 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        fields = ["id", "title", "slug", "author_username", "created_on", "image"]
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "author_username",
+            "created_on",
+            "image",
+            "average_rating",
+            "rating_count",
+        ]
         read_only_fields = ["slug", "author_username", "created_on"]
 
 
@@ -71,6 +80,8 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             "updated_on",
             "image",
             "recipe_ingredients",
+            "average_rating",
+            "rating_count",
             "remove_image",
         ]
         read_only_fields = ["slug", "author_username", "created_on", "updated_on"]
@@ -123,3 +134,23 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             for item in ingredients:
                 RecipeIngredient.objects.create(recipe=instance, **item)
         return instance
+
+
+class RecipeRatingSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    # TODO check why using username instead of id
+    # Use PrimaryKeyRelatedField for writing the recipe ID
+    recipe = serializers.PrimaryKeyRelatedField(queryset=Recipe.objects.all())
+
+    class Meta:
+        model = RecipeRating
+        fields = [
+            "id",
+            "recipe",
+            "author_username",
+            "rating",
+            "comment",
+            "created_on",
+            "updated_on",
+        ]
+        read_only_fields = ["author_username", "created_on", "updated_on"]

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Recipe, RecipeIngredient
+from .models import Recipe, RecipeIngredient, RecipeRating
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -36,4 +36,11 @@ class RecipeAdmin(admin.ModelAdmin):
         return form
 
 
+class RecipeRatingAdmin(admin.ModelAdmin):
+    list_display = ("recipe", "author", "rating", "created_on", "updated_on")
+    search_fields = ["recipe__title", "author__username"]
+    list_filter = ["recipe", "author"]
+
+
 admin.site.register(Recipe, RecipeAdmin)
+admin.site.register(RecipeRating, RecipeRatingAdmin)

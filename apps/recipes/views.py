@@ -1,11 +1,19 @@
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, permissions, serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Recipe
-from .serializers import RecipeDetailSerializer, SimpleRecipeSerializer
+from .models import Recipe, RecipeRating, RecipeIngredient
+from .serializers import (
+    RecipeDetailSerializer,
+    SimpleRecipeSerializer,
+    RecipeRatingSerializer,
+    RecipeIngredientSerializer,
+)
+from .services import update_recipe_ratings
+from .permissions import IsAuthorOrReadOnly
 
 from apps.core.views import IsAuthorOrSuperuser
 
@@ -14,22 +22,50 @@ class RecipeViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows recipes to be viewed, created, updated and deleted.
     Regular users can only modify their own recipes, superusers can modify any.
+    Use ?mine=true to filter for the logged-in user's recipes.
     """
 
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, IsAuthorOrSuperuser]
+    # queryset = (
+    #     Recipe.objects.select_related("author")
+    #     .prefetch_related("recipeingredient_set__ingredient", "reciperating_set")
+    #     .all()
+    # )
+    # lookup_field = "slug"
+    serializer_class = SimpleRecipeSerializer  # Default, overridden by get_serializer_class
 
     def get_queryset(self):
-        # If the client requests only their own recipes via the query parameter "mine"
-        if self.request.query_params.get("mine", "").lower() == "true":
-            return Recipe.objects.filter(author=self.request.user).order_by("-created_on")
-        # Otherwise, return all the recipes. You can adjust permissions as needed.
-        return Recipe.objects.all().order_by("-created_on")
+        """
+        Optionally restricts the returned recipes to the logged-in user's recipes,
+        by filtering against a `mine=true` query parameter in the URL.
+        """
+        user = self.request.user
+        base_queryset = Recipe.objects.select_related("author").prefetch_related(
+            "recipeingredient_set__ingredient", "reciperating_set"
+        )
+
+        # Filter for 'mine' parameter if user is authenticated
+        show_mine = self.request.query_params.get("mine", "").lower() == "true"
+        if show_mine and user.is_authenticated:
+            queryset = base_queryset.filter(author=user)
+        else:
+            # Optionally, you might want to restrict viewing *all* recipes
+            # if the user isn't authenticated, depending on your app's logic.
+            # For now, returning all if 'mine' isn't specified or user isn't logged in.
+            queryset = base_queryset.all()
+
+        return queryset.order_by("-created_on")  # Apply ordering at the end
 
     def get_serializer_class(self):
         if self.action == "list":
             return SimpleRecipeSerializer
         return RecipeDetailSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -53,3 +89,47 @@ class RecipeViewSet(viewsets.ModelViewSet):
             scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
 
         return Response({"ingredients": scaled_ingredients})
+
+
+class RecipeRatingViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows recipe ratings to be viewed or edited.
+    Filters by recipe ID if 'recipe_id' query parameter is provided.
+    """
+
+    serializer_class = RecipeRatingSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    # filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["recipe"]
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned ratings to a given recipe,
+        by filtering against a `recipe_id` query parameter in the URL.
+        """
+        queryset = RecipeRating.objects.select_related("author").all()
+        recipe_id = self.request.query_params.get("recipe")
+        if recipe_id is not None:
+            try:
+                recipe_id_int = int(recipe_id)
+                queryset = queryset.filter(recipe_id=recipe_id_int)
+            except ValueError:
+                return RecipeRating.objects.none()
+        return queryset.order_by("-created_on")
+
+    def perform_create(self, serializer):
+        recipe = serializer.validated_data["recipe"]
+        if RecipeRating.objects.filter(recipe=recipe, author=self.request.user).exists():
+            raise serializers.ValidationError("You have already rated this recipe.")
+
+        instance = serializer.save(author=self.request.user)
+        update_recipe_ratings(instance.recipe)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        update_recipe_ratings(instance.recipe)
+
+    def perform_destroy(self, instance):
+        recipe = instance.recipe
+        instance.delete()
+        update_recipe_ratings(recipe)
