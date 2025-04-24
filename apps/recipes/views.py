@@ -3,7 +3,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend  # TODO check if this is needed
 
 from .models import Recipe, RecipeRating
 from .serializers import (
@@ -15,6 +15,7 @@ from .services import update_recipe_ratings
 from .permissions import IsAuthorOrReadOnly
 
 from apps.core.views import IsAuthorOrSuperuser
+from apps.feed.models import FeedItem
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -67,7 +68,29 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return context
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Save the recipe first to get an instance
+        recipe_instance = serializer.save(author=self.request.user)
+        # Create a corresponding FeedItem
+        FeedItem.objects.create(
+            user=recipe_instance.author,
+            event_type=FeedItem.EventType.NEW_RECIPE,
+            recipe=recipe_instance,
+        )
+
+    def perform_update(self, serializer):
+        recipe_instance = serializer.save()
+        # Similar to ratings: delete old feed item, create new
+        FeedItem.objects.filter(recipe=recipe_instance, event_type=FeedItem.EventType.NEW_RECIPE).delete()
+        FeedItem.objects.create(
+            user=recipe_instance.author,
+            event_type=FeedItem.EventType.NEW_RECIPE,
+            recipe=recipe_instance,
+        )
+
+    def perform_destroy(self, instance):
+        # Delete related feed items before deleting the recipe
+        FeedItem.objects.filter(recipe=instance).delete()
+        instance.delete()
 
     @action(detail=True, methods=["get"])
     def formatted_ingredients(self, request, pk=None):
@@ -121,14 +144,33 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
         if RecipeRating.objects.filter(recipe=recipe, author=self.request.user).exists():
             raise serializers.ValidationError("You have already rated this recipe.")
 
-        instance = serializer.save(author=self.request.user)
-        update_recipe_ratings(instance.recipe)
+        # Save the rating first to get an instance
+        rating_instance = serializer.save(author=self.request.user)
+        # Update recipe's average rating
+        update_recipe_ratings(rating_instance.recipe)
+        # Create a corresponding FeedItem
+        FeedItem.objects.create(
+            user=rating_instance.author,
+            event_type=FeedItem.EventType.NEW_RATING,
+            rating=rating_instance,
+            recipe=rating_instance.recipe,
+        )
 
     def perform_update(self, serializer):
         instance = serializer.save()
         update_recipe_ratings(instance.recipe)
+        # Delete the related feed item
+        FeedItem.objects.filter(rating=instance).delete()
+        FeedItem.objects.create(
+            user=instance.author,
+            event_type=FeedItem.EventType.NEW_RATING,
+            rating=instance,
+            recipe=instance.recipe,
+        )
 
     def perform_destroy(self, instance):
         recipe = instance.recipe
         instance.delete()
         update_recipe_ratings(recipe)
+        # Delete the related feed item
+        FeedItem.objects.filter(rating=instance).delete()

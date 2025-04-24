@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.core",
+    "apps.feed",
     "apps.recipes",
     "apps.ingredients",
     "apps.groceries",
