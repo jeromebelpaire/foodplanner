@@ -1,33 +1,7 @@
 from rest_framework import serializers
 from .models import FeedItem
 
-# Import serializers for nesting
 from apps.recipes.serializers import SimpleRecipeSerializer, RecipeRatingSerializer
-
-
-# A simplified RecipeRatingSerializer for nesting inside FeedItem
-class SimpleRecipeRatingSerializerForFeed(serializers.ModelSerializer):
-    # We only need a few fields for the feed display
-    author_username = serializers.CharField(source="author.username", read_only=True)
-    recipe_title = serializers.CharField(source="recipe.title", read_only=True)
-    # Convert 0-10 rating to 0-5 stars for display?
-    rating_stars = serializers.SerializerMethodField()
-
-    class Meta:
-        model = RecipeRatingSerializer.Meta.model  # Use the actual RecipeRating model
-        fields = [
-            "id",
-            "author_username",
-            "recipe_title",
-            "rating",  # Keep the original 0-10 rating
-            "rating_stars",  # Add the 0-5 representation
-            "comment",
-            "created_on",
-        ]
-
-    def get_rating_stars(self, obj):
-        # Convert 0-10 scale to 0-5
-        return obj.rating / 2 if obj.rating is not None else None
 
 
 class FeedItemSerializer(serializers.ModelSerializer):
@@ -35,9 +9,10 @@ class FeedItemSerializer(serializers.ModelSerializer):
     # Nest the full SimpleRecipeSerializer when the item is a recipe
     recipe = SimpleRecipeSerializer(read_only=True)
     # Nest the simplified rating serializer when the item is a rating
-    rating = SimpleRecipeRatingSerializerForFeed(read_only=True)
+    rating = RecipeRatingSerializer(read_only=True)
 
     class Meta:
+        # TODO limit the number of fields returned for efficiency
         model = FeedItem
         fields = [
             "id",
