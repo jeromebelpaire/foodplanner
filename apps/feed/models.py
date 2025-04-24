@@ -7,12 +7,14 @@ from apps.recipes.models import Recipe, RecipeRating
 
 class FeedItem(models.Model):
     class EventType(models.TextChoices):
-        NEW_RECIPE = "NR", _("New Recipe")
-        NEW_RATING = "RA", _("New Rating")
+        NEW_RECIPE = "new_recipe", _("New Recipe")
+        NEW_RATING = "new_rating", _("New Rating")
+        UPDATE_RECIPE = "update_recipe", _("Update Recipe")
+        UPDATE_RATING = "update_rating", _("Update Rating")
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="feed_items")
     event_type = models.CharField(
-        max_length=2,
+        max_length=20,
         choices=EventType.choices,
     )
     created_on = models.DateTimeField(auto_now_add=True)

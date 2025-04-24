@@ -83,7 +83,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         FeedItem.objects.filter(recipe=recipe_instance, event_type=FeedItem.EventType.NEW_RECIPE).delete()
         FeedItem.objects.create(
             user=recipe_instance.author,
-            event_type=FeedItem.EventType.NEW_RECIPE,
+            event_type=FeedItem.EventType.UPDATE_RECIPE,
             recipe=recipe_instance,
         )
 
@@ -163,7 +163,7 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
         FeedItem.objects.filter(rating=instance).delete()
         FeedItem.objects.create(
             user=instance.author,
-            event_type=FeedItem.EventType.NEW_RATING,
+            event_type=FeedItem.EventType.UPDATE_RATING,
             rating=instance,
             recipe=instance.recipe,
         )
