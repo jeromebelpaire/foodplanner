@@ -1,8 +1,13 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.middleware.csrf import get_token
-from rest_framework import permissions, status, serializers
+from rest_framework import permissions, status, serializers, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import NotFound
+
+# Import models and serializers from core
+from .models import Follow
+from .serializers import UserSearchSerializer
 
 User = get_user_model()  # Get the active user model
 
@@ -152,3 +157,93 @@ class SignupView(APIView):
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --- New Views for User Search and Follow/Unfollow ---
+
+
+class UserSearchView(generics.ListAPIView):
+    """
+    API view to search for users by username.
+    Requires authentication.
+    Uses pagination (default DRF settings apply).
+    Returns user data including whether the requesting user follows them.
+    """
+
+    serializer_class = UserSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    # Add pagination later if needed: pagination_class = ...
+
+    def get_queryset(self):
+        """Filter users based on the 'query' parameter (username)."""
+        queryset = User.objects.all().order_by("username")  # Start with all users
+        search_query = self.request.query_params.get("query", None)
+
+        if search_query:
+            # Filter case-insensitively on username containing the query
+            queryset = queryset.filter(username__icontains=search_query)
+        else:
+            # Return empty list if no query is provided, or maybe first N users?
+            # For an async select, returning empty without query is common.
+            queryset = User.objects.none()
+
+        # Exclude the requesting user from the search results
+        if self.request.user.is_authenticated:
+            queryset = queryset.exclude(pk=self.request.user.pk)
+
+        return queryset
+
+    def get_serializer_context(self):
+        """Pass request context to the serializer for 'is_following'."""
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+
+class FollowToggleView(APIView):
+    """
+    API view to follow or unfollow a user.
+    Expects a POST request to follow and a DELETE request to unfollow.
+    The user to follow/unfollow is specified in the URL (pk).
+    Requires authentication.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, format=None):
+        """Follow a user specified by pk."""
+        try:
+            user_to_follow = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise NotFound("User not found.")
+
+        follower = request.user
+
+        if follower == user_to_follow:
+            return Response({"detail": "You cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if already following
+        if Follow.objects.filter(follower=follower, followed=user_to_follow).exists():
+            return Response({"detail": "You are already following this user."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the follow relationship
+        Follow.objects.create(follower=follower, followed=user_to_follow)
+        return Response({"detail": f"Successfully followed {user_to_follow.username}."}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk, format=None):
+        """Unfollow a user specified by pk."""
+        try:
+            user_to_unfollow = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise NotFound("User not found.")
+
+        follower = request.user
+
+        try:
+            follow_instance = Follow.objects.get(follower=follower, followed=user_to_unfollow)
+            follow_instance.delete()
+            return Response(
+                {"detail": f"Successfully unfollowed {user_to_unfollow.username}."}, status=status.HTTP_204_NO_CONTENT
+            )
+        except Follow.DoesNotExist:
+            return Response({"detail": "You are not following this user."}, status=status.HTTP_400_BAD_REQUEST)

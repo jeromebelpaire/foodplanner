@@ -1,5 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.authentication import SessionAuthentication
+from django.db.models import Q  # Import Q for complex lookups
+from apps.core.models import Follow  # Import Follow model
 from .models import FeedItem
 from .serializers import FeedItemSerializer
 
@@ -9,6 +11,7 @@ from .serializers import FeedItemSerializer
 class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint that allows feed items to be viewed.
+    Filters items to show those from the current user and users they follow.
     It's read-only for now.
     """
 
@@ -18,23 +21,28 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """
-        Return all feed items, ordered by creation date.
-        Efficiently fetches related user, recipe (with author), and rating (with author and recipe)
-        data for nested serialization.
-        Future: Implement following logic here.
+        Return feed items for the current user and users they follow,
+        ordered by creation date.
+        Efficiently fetches related data for nested serialization.
         """
-        # TODO: Implement following logic
-        # user = self.request.user
-        # For now, return all items
+        user = self.request.user
+
+        # Get IDs of users the current user is following
+        # We use values_list('followed_id', flat=True) for efficiency
+        followed_user_ids = Follow.objects.filter(follower=user).values_list("followed_id", flat=True)
+
+        # Base queryset with necessary select_related for performance
         queryset = FeedItem.objects.select_related(
             "user",
-            "recipe__author",  # For nested SimpleRecipeSerializer
-            "rating__author",  # For nested SimpleRecipeRatingSerializerForFeed
-            "rating__recipe",  # For nested SimpleRecipeRatingSerializerForFeed (recipe_title)
-        ).all()
+            "recipe__author",
+            "rating__author",
+            "rating__recipe",
+        )
 
+        # Filter: Include items from the current user OR from followed users
+        queryset = queryset.filter(
+            Q(user=user) | Q(user_id__in=list(followed_user_ids))  # Use user_id__in for efficiency
+        )
+
+        # Order by creation date, newest first
         return queryset.order_by("-created_on")
-        # Later, filter based on users `user` follows
-        # followed_users = user.following.all() # Assuming a following relationship exists
-        # queryset = queryset.filter(user__in=followed_users)
-        # return queryset
