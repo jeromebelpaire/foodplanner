@@ -108,7 +108,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         scaled_ingredients = []
         for ri in recipe_ingredients:
             quantity = ri.quantity * guests
-            scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.ingredient.unit}")
+            scaled_ingredients.append(f"{ri.ingredient.name}: {quantity:.2f} {ri.unit.name}")
 
         return Response({"ingredients": scaled_ingredients})
 

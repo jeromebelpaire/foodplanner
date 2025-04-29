@@ -4,23 +4,22 @@ import nh3
 from django.utils.text import slugify
 from rest_framework import serializers
 
-from apps.ingredients.serializers import IngredientSerializer
+from apps.ingredients.models import IngredientUnit
+from apps.ingredients.serializers import IngredientSerializer, IngredientUnitSerializer
 
 from .models import Recipe, RecipeIngredient, RecipeRating
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
-    # Include ingredient details directly using IngredientSerializer
-    # Use source='ingredient' to specify the related field name
     ingredient = IngredientSerializer(read_only=True)
-    # You might want to allow writing ingredient by ID
     ingredient_id = serializers.PrimaryKeyRelatedField(
         queryset=IngredientSerializer.Meta.model.objects.all(),
         source="ingredient",
         write_only=True,
     )
-    unit = serializers.CharField(source="ingredient.unit", read_only=True)
-    name = serializers.CharField(source="ingredient.name", read_only=True)
+    unit = IngredientUnitSerializer(read_only=True)
+    unit_id = serializers.PrimaryKeyRelatedField(queryset=IngredientUnit.objects.all(), source="unit", write_only=True)
+    # name = serializers.CharField(source="ingredient.name", read_only=True)
 
     class Meta:
         model = RecipeIngredient
@@ -28,10 +27,11 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             "id",
             "ingredient_id",
             "ingredient",
-            "name",
+            # "name",
             "quantity",
+            "unit_id",
             "unit",
-        ]  #'ingredient' for reading, 'ingredient_id' for writing
+        ]
 
 
 class SimpleRecipeSerializer(serializers.ModelSerializer):

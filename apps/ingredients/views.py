@@ -2,8 +2,8 @@ from django.db.models import Q, Case, When, Value, IntegerField
 from rest_framework import viewsets, permissions, filters
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from .models import Ingredient
-from .serializers import IngredientSerializer
+from .models import Ingredient, IngredientUnit
+from .serializers import IngredientSerializer, IngredientUnitSerializer
 
 from rest_framework.pagination import PageNumberPagination
 
@@ -54,3 +54,15 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
     # If read-only is strictly required:
     # http_method_names = ['get', 'head', 'options']
+
+
+class IngredientUnitViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for listing available ingredient units.
+    Read-only access for all users.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    queryset = IngredientUnit.objects.all()
+    serializer_class = IngredientUnitSerializer
+    pagination_class = None
