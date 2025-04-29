@@ -26,9 +26,10 @@ class RecipeIngredient(models.Model):
     quantity = models.FloatField()  # quantity for 1 person
     ingredient = models.ForeignKey("ingredients.Ingredient", on_delete=models.PROTECT)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+    unit = models.ForeignKey("ingredients.IngredientUnit", on_delete=models.PROTECT)
 
     def __str__(self):
-        return f"{self.ingredient.name} - {self.ingredient.unit}"
+        return f"{self.ingredient.name} - {self.unit.name}"
 
 
 class RecipeRating(models.Model):

@@ -463,3 +463,5 @@ __pycache__/
 test_query.py
 test_postgres.py
 /staticfiles/
+
+.cursor/*
