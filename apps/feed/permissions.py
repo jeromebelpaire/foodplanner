@@ -20,4 +20,5 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
             # Or handle based on specific logic (e.g., check an 'author' attribute)
             return False
 
-        return request.user.is_superuser or obj.author == request.user
+        # Check if the user is the owner OR a superuser
+        return obj.user == request.user or request.user.is_superuser

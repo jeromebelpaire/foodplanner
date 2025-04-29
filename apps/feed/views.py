@@ -118,21 +118,34 @@ class FeedItemCommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]  # Allow read, require ownership for write
 
     def get_queryset(self):
-        """Filter comments to only those belonging to the specified feed item."""
-        feed_item_pk = self.kwargs.get("feed_item_pk")
-        if not feed_item_pk:
-            # This shouldn't happen with proper URL routing, but handle defensively
-            return FeedItemComment.objects.none()
+        """
+        Filter comments based on the URL kwargs.
+        If 'feed_item_pk' is present (list/create via nested URL),
+        filter by that feed item.
+        Otherwise (detail view via /comments/pk/), return all comments,
+        letting the default get_object handle filtering by pk.
+        """
+        queryset = FeedItemComment.objects.select_related("user")  # Base queryset
 
-        # Prefetch related user for efficiency when serializing
-        return FeedItemComment.objects.filter(feed_item_id=feed_item_pk).select_related("user")
+        feed_item_pk = self.kwargs.get("feed_item_pk")
+        if feed_item_pk:
+            # If accessed via nested URL (e.g., for list/create), filter by feed item.
+            queryset = queryset.filter(feed_item_id=feed_item_pk)
+        # Else: If accessed via /comments/pk/ (detail view),
+        # we don't filter by feed_item here. The default get_object
+        # will filter the base queryset using the comment's 'pk' from kwargs.
+
+        return queryset
 
     def perform_create(self, serializer):
         """Automatically set the comment author and associate with the feed item."""
-        feed_item_pk = self.kwargs.get("feed_item_pk")
+        # This action is only hit via the nested URL which guarantees feed_item_pk
+        feed_item_pk = self.kwargs["feed_item_pk"]  # Can access directly now
         try:
             feed_item = FeedItem.objects.get(pk=feed_item_pk)
         except FeedItem.DoesNotExist:
+            # Although the URL pattern ensures feed_item_pk is an int,
+            # the FeedItem itself might not exist (e.g., deleted between requests)
             raise NotFound("Feed item not found.")
         serializer.save(user=self.request.user, feed_item=feed_item)
 
