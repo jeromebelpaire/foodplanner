@@ -4,6 +4,7 @@ from django.db import models
 class Ingredient(models.Model):
     name = models.CharField(max_length=100, unique=True)
     fdc_id = models.IntegerField(unique=True)
+    priority = models.IntegerField(default=0, db_index=True)
 
     def __str__(self):
         return self.name
