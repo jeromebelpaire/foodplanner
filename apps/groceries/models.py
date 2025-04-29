@@ -30,9 +30,10 @@ class PlannedRecipe(models.Model):
 class PlannedExtra(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    quantity = models.FloatField()  # quantity
+    quantity = models.FloatField()
     grocery_list = models.ForeignKey(GroceryList, related_name="plannedextras", on_delete=models.CASCADE)
     ingredient = models.ForeignKey("ingredients.Ingredient", on_delete=models.PROTECT, related_name="plannedextras")
+    unit = models.ForeignKey("ingredients.IngredientUnit", on_delete=models.PROTECT, related_name="plannedextras")
 
 
 class GroceryListItem(models.Model):
@@ -40,6 +41,7 @@ class GroceryListItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     grocery_list = models.ForeignKey(GroceryList, related_name="grocerylistitems", on_delete=models.CASCADE)
     ingredient = models.ForeignKey("ingredients.Ingredient", on_delete=models.PROTECT, related_name="grocerylistitems")
+    unit = models.ForeignKey("ingredients.IngredientUnit", on_delete=models.PROTECT, related_name="grocerylistitems")
     from_recipes = models.TextField()
     quantity = models.FloatField()
     is_checked = models.BooleanField(default=False)

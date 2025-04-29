@@ -19,7 +19,6 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     )
     unit = IngredientUnitSerializer(read_only=True)
     unit_id = serializers.PrimaryKeyRelatedField(queryset=IngredientUnit.objects.all(), source="unit", write_only=True)
-    # name = serializers.CharField(source="ingredient.name", read_only=True)
 
     class Meta:
         model = RecipeIngredient
@@ -27,7 +26,6 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             "id",
             "ingredient_id",
             "ingredient",
-            # "name",
             "quantity",
             "unit_id",
             "unit",

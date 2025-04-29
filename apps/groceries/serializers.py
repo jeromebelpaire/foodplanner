@@ -1,16 +1,11 @@
 from rest_framework import serializers
 from .models import GroceryList, PlannedRecipe, PlannedExtra, GroceryListItem
 
-# Import related models needed for validation/representation
-from apps.ingredients.models import Ingredient
-from apps.recipes.models import Recipe  # Use correct app name: apps.recipebook.models if renamed
+from apps.ingredients.models import Ingredient, IngredientUnit
+from apps.recipes.models import Recipe
 
-# Import related serializers for nesting
-from apps.ingredients.serializers import IngredientSerializer
-from apps.recipes.serializers import SimpleRecipeSerializer  # Use correct app name
-
-# Optional: For displaying user info on GroceryList
-# from apps.accounts.serializers import BasicUserSerializer
+from apps.ingredients.serializers import IngredientSerializer, IngredientUnitSerializer
+from apps.recipes.serializers import SimpleRecipeSerializer
 
 
 class GroceryListSerializer(serializers.ModelSerializer):
@@ -71,10 +66,12 @@ class PlannedExtraSerializer(serializers.ModelSerializer):
 
     # On read, show nested ingredient details
     ingredient = IngredientSerializer(read_only=True)
+    unit = IngredientUnitSerializer(read_only=True)
     # On write, accept ingredient ID
     ingredient_id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all(), source="ingredient", write_only=True
     )
+    unit_id = serializers.PrimaryKeyRelatedField(queryset=IngredientUnit.objects.all(), source="unit", write_only=True)
     # Grocery list association (similar to PlannedRecipeSerializer)
     grocery_list_id = serializers.PrimaryKeyRelatedField(
         queryset=GroceryList.objects.all(), source="grocery_list", write_only=True
@@ -90,6 +87,8 @@ class PlannedExtraSerializer(serializers.ModelSerializer):
             "ingredient",  # Read-only nested details
             "ingredient_id",  # Write-only
             "quantity",
+            "unit",
+            "unit_id",
             "created_at",
             "updated_at",
         ]
@@ -104,6 +103,7 @@ class GroceryListItemSerializer(serializers.ModelSerializer):
 
     # Show nested ingredient details
     ingredient = IngredientSerializer(read_only=True)
+    unit = IngredientUnitSerializer(read_only=True)
     # Grocery list association - usually known from context, but included for completeness
     grocery_list_id = serializers.IntegerField(source="grocery_list.id", read_only=True)
     grocery_list_name = serializers.CharField(source="grocery_list.name", read_only=True)
@@ -115,6 +115,7 @@ class GroceryListItemSerializer(serializers.ModelSerializer):
             "grocery_list_id",
             "grocery_list_name",
             "ingredient",
+            "unit",
             "from_recipes",
             "quantity",
             "is_checked",  # This field should be writable (for PATCH requests)
@@ -125,6 +126,7 @@ class GroceryListItemSerializer(serializers.ModelSerializer):
             "grocery_list_id",
             "grocery_list_name",
             "ingredient",
+            "unit",
             "from_recipes",
             "quantity",
             "updated_at",

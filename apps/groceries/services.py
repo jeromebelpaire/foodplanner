@@ -1,10 +1,12 @@
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.db.models import Q
 from django.contrib.auth import get_user_model  # Use this to get the User model
 from collections import defaultdict
 
 # Import models using app labels to avoid potential circular imports
 from .models import GroceryList, PlannedRecipe, PlannedExtra, GroceryListItem
+from apps.ingredients.models import Ingredient, IngredientUnit
 
 # from apps.ingredients.models import Ingredient # Not directly needed if accessed via relations
 # from apps.recipes.models import RecipeIngredient # Not directly needed
@@ -16,7 +18,7 @@ User = get_user_model()
 def update_grocery_list_items(grocery_list_id: int, user: User) -> None:
     """
     Recalculates and saves all GroceryListItem objects for a given grocery list
-    based on its PlannedRecipe and PlannedExtra items.
+    based on its PlannedRecipe and PlannedExtra items. Aggregates by ingredient AND unit.
 
     Ensures the user owns the grocery list.
     """
@@ -28,17 +30,21 @@ def update_grocery_list_items(grocery_list_id: int, user: User) -> None:
         print(f"Error: GroceryList ID {grocery_list_id} not found or not owned by user {user.id}")
         return  # Exit if list not found or not owned by the user
 
-    # Fetch related items efficiently
+    # Fetch related items efficiently, including units
     planned_recipes = (
         grocery_list.plannedrecipes.select_related("recipe")
-        .prefetch_related("recipe__recipeingredient_set__ingredient")
+        .prefetch_related(
+            "recipe__recipeingredient_set__ingredient",  # Prefetch ingredient
+            "recipe__recipeingredient_set__unit",  # Prefetch unit for recipe ingredients
+        )
         .all()
     )
-    planned_extras = grocery_list.plannedextras.select_related("ingredient").all()
+    # Select related ingredient and unit for planned extras
+    planned_extras = grocery_list.plannedextras.select_related("ingredient", "unit").all()
 
-    # Use defaultdict for easier aggregation
-    # Key: ingredient_id, Value: {'quantity': float, 'units': set(), 'sources': list()}
-    aggregated_items = defaultdict(lambda: {"quantity": 0.0, "units": set(), "sources": []})
+    # Use defaultdict for aggregation
+    # Key: (ingredient_id, unit_id), Value: {'quantity': float, 'sources': list(), 'ingredient_obj': Ingredient, 'unit_obj': IngredientUnit}
+    aggregated_items = defaultdict(lambda: {"quantity": 0.0, "sources": [], "ingredient_obj": None, "unit_obj": None})
 
     # --- Aggregate ingredients from planned recipes ---
     for pr in planned_recipes:
@@ -48,100 +54,105 @@ def update_grocery_list_items(grocery_list_id: int, user: User) -> None:
         source_text = f"{pr.guests}p {pr.recipe.title}"
         # Iterate through the ingredients needed for the recipe
         for ri in pr.recipe.recipeingredient_set.all():
-            if not ri.ingredient:
-                continue  # Skip if ingredient is somehow missing
+            # Ensure both ingredient and unit are present
+            if not ri.ingredient or not ri.unit:
+                continue  # Skip if ingredient or unit is somehow missing
 
-            ingredient = ri.ingredient  # Get the related Ingredient object
-            ingredient_id = ingredient.id
+            ingredient = ri.ingredient
+            unit = ri.unit
+            agg_key = (ingredient.id, unit.id)
             quantity = ri.quantity * pr.guests
 
-            aggregated_items[ingredient_id]["quantity"] += quantity
-            aggregated_items[ingredient_id]["units"].add(ingredient.unit)
-            aggregated_items[ingredient_id]["sources"].append(source_text)
-            # Store ingredient object for creating GroceryListItem later
-            aggregated_items[ingredient_id]["ingredient_obj"] = ingredient
+            aggregated_items[agg_key]["quantity"] += quantity
+            aggregated_items[agg_key]["sources"].append(source_text)
+            # Store objects only once
+            if aggregated_items[agg_key]["ingredient_obj"] is None:
+                aggregated_items[agg_key]["ingredient_obj"] = ingredient
+                aggregated_items[agg_key]["unit_obj"] = unit
 
     # --- Aggregate ingredients from planned extras ---
     for pe in planned_extras:
-        if not pe.ingredient:
-            continue  # Skip if ingredient is somehow missing
+        # Ensure both ingredient and unit are present
+        if not pe.ingredient or not pe.unit:
+            continue  # Skip if ingredient or unit is somehow missing
 
         ingredient = pe.ingredient
-        ingredient_id = ingredient.id
+        unit = pe.unit
+        agg_key = (ingredient.id, unit.id)
         source_text = "Extras"
 
-        aggregated_items[ingredient_id]["quantity"] += pe.quantity
-        aggregated_items[ingredient_id]["units"].add(ingredient.unit)
-        # Avoid adding "Extras" multiple times if it came from recipes too
-        if source_text not in aggregated_items[ingredient_id]["sources"]:
-            aggregated_items[ingredient_id]["sources"].append(source_text)
-        # Store ingredient object if not already stored by a recipe
-        if "ingredient_obj" not in aggregated_items[ingredient_id]:
-            aggregated_items[ingredient_id]["ingredient_obj"] = ingredient
+        aggregated_items[agg_key]["quantity"] += pe.quantity
+        if source_text not in aggregated_items[agg_key]["sources"]:
+            aggregated_items[agg_key]["sources"].append(source_text)
+        # Store objects if not already stored by a recipe
+        if aggregated_items[agg_key]["ingredient_obj"] is None:
+            aggregated_items[agg_key]["ingredient_obj"] = ingredient
+            aggregated_items[agg_key]["unit_obj"] = unit
 
-    # --- Create/Update GroceryListItem objects ---
-    # Get existing items to potentially update `is_checked` status
-    existing_items = {item.ingredient_id: item for item in grocery_list.grocerylistitems.all()}
-    new_item_pks = set()  # Keep track of items that should exist
+    # --- Create/Update/Delete GroceryListItem objects ---
+    # Key existing items by (ingredient_id, unit_id) for quick lookup
+    existing_items = {(item.ingredient_id, item.unit_id): item for item in grocery_list.grocerylistitems.all()}
+    # Set of keys that should exist after aggregation
+    aggregated_keys = set(aggregated_items.keys())
 
     items_to_create = []
     items_to_update = []
 
-    for ingredient_id, data in aggregated_items.items():
-        # Handle units - simplistic approach: join if multiple, warn if complex conversion needed
-        unit_str = " & ".join(sorted(list(data["units"])))
-        if len(data["units"]) > 1:
-            # TODO: Implement unit conversion logic if necessary
-            print(
-                f"Warning: Multiple units ({unit_str}) for ingredient ID {ingredient_id} in list {grocery_list_id}. Using combined string."
-            )
+    for agg_key, data in aggregated_items.items():
+        ingredient_id, unit_id = agg_key
+        # Ensure we have the objects needed
+        if not data["ingredient_obj"] or not data["unit_obj"]:
+            print(f"Warning: Missing ingredient or unit object for key {agg_key}. Skipping.")
+            continue
 
         # Join sources neatly
         from_recipes_str = " & ".join(sorted(list(set(data["sources"]))))
 
         # Check if item exists to retain its checked status
-        existing_item = existing_items.get(ingredient_id)
+        existing_item = existing_items.get(agg_key)
         is_checked = existing_item.is_checked if existing_item else False
 
         item_data = {
             "grocery_list": grocery_list,
             "ingredient": data["ingredient_obj"],
-            "quantity": round(data["quantity"], 2),  # Round to reasonable precision
+            "unit": data["unit_obj"],
+            "quantity": round(data["quantity"], 2),
             "from_recipes": from_recipes_str,
-            "is_checked": is_checked,
+            "is_checked": is_checked,  # Preserve checked status
         }
 
         if existing_item:
-            # Update existing item if data changed (excluding is_checked initially)
-            update_needed = False
-            for key, value in item_data.items():
-                if key != "is_checked" and getattr(existing_item, key) != value:
-                    setattr(existing_item, key, value)
-                    update_needed = True
-            if update_needed:
+            # Update existing item only if data changed (quantity or sources)
+            if (
+                existing_item.quantity != item_data["quantity"]
+                or existing_item.from_recipes != item_data["from_recipes"]
+            ):
+                existing_item.quantity = item_data["quantity"]
+                existing_item.from_recipes = item_data["from_recipes"]
+                # Note: updated_at is handled automatically
                 items_to_update.append(existing_item)
-            new_item_pks.add(existing_item.pk)  # Mark as should exist
         else:
-            # Create new item
+            # Create new item (without is_checked initially, handled above)
             items_to_create.append(GroceryListItem(**item_data))
-            # Note: We capture the PK after creation if needed
 
     # Bulk create new items
     if items_to_create:
-        created_items = GroceryListItem.objects.bulk_create(items_to_create)
-        for item in created_items:
-            new_item_pks.add(item.pk)  # Add newly created PKs
+        GroceryListItem.objects.bulk_create(items_to_create)
 
     # Bulk update existing items (if fields changed)
     if items_to_update:
-        # Specify fields to update for efficiency
-        update_fields = ["quantity", "from_recipes", "updated_at"]  # Add others if needed
-        GroceryListItem.objects.bulk_update(items_to_update, update_fields)
+        GroceryListItem.objects.bulk_update(items_to_update, ["quantity", "from_recipes"])
 
-    # Delete items that are no longer needed (were in existing_items but not in aggregated_items)
-    pks_to_delete = set(existing_items.keys()) - new_item_pks  # PKs to delete are ingredient IDs here, careful
-    ingredient_ids_to_delete = set(existing_items.keys()) - set(aggregated_items.keys())
-    if ingredient_ids_to_delete:
-        GroceryListItem.objects.filter(grocery_list=grocery_list, ingredient_id__in=ingredient_ids_to_delete).delete()
+    # --- Delete items that are no longer needed ---
+    keys_to_delete = set(existing_items.keys()) - aggregated_keys
+    if keys_to_delete:
+        # Build a Q object to match items to delete
+        # Q(ingredient_id=id1, unit_id=id1) | Q(ingredient_id=id2, unit_id=id2) ...
+        delete_query = Q()
+        for ing_id, unit_id in keys_to_delete:
+            delete_query |= Q(ingredient_id=ing_id, unit_id=unit_id)
+
+        if delete_query:  # Ensure the query is not empty
+            GroceryListItem.objects.filter(grocery_list=grocery_list).filter(delete_query).delete()
 
     print(f"Successfully updated grocery list items for list ID: {grocery_list_id}")
