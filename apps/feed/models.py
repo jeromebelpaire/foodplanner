@@ -28,3 +28,40 @@ class FeedItem(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.get_event_type_display()} - {self.created_on.strftime('%Y-%m-%d')}"
+
+
+class FeedItemLike(models.Model):
+    """Represents a user liking a specific feed item."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="feed_likes")
+    feed_item = models.ForeignKey(FeedItem, on_delete=models.CASCADE, related_name="likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "feed_item")  # User can only like an item once
+        ordering = ["-created_at"]
+        verbose_name = "Feed Item Like"
+        verbose_name_plural = "Feed Item Likes"
+
+    def __str__(self):
+        user_repr = getattr(self.user, "username", f"User {self.user_id}")
+        return f"{user_repr} likes FeedItem {self.feed_item_id}"
+
+
+class FeedItemComment(models.Model):
+    """Represents a comment made by a user on a specific feed item."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="feed_comments")
+    feed_item = models.ForeignKey(FeedItem, on_delete=models.CASCADE, related_name="comments")
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]  # Show oldest comments first
+        verbose_name = "Feed Item Comment"
+        verbose_name_plural = "Feed Item Comments"
+
+    def __str__(self):
+        user_repr = getattr(self.user, "username", f"User {self.user_id}")
+        return f"Comment by {user_repr} on FeedItem {self.feed_item_id} at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
