@@ -1,7 +1,7 @@
 from rest_framework import status, viewsets, permissions, serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend  # TODO check if this is needed
 
@@ -26,7 +26,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     """
 
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, IsAuthorOrSuperuser]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrSuperuser]
     # queryset = (
     #     Recipe.objects.select_related("author")
     #     .prefetch_related("recipeingredient_set__ingredient", "reciperating_set")
