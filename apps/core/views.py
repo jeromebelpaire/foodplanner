@@ -117,8 +117,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ("id", "username", "password", "email", "first_name", "last_name", "confirm_password")
         extra_kwargs = {
             "email": {"required": True, "allow_blank": False},
-            "first_name": {"required": False, "allow_blank": True},
-            "last_name": {"required": False, "allow_blank": True},
+            "first_name": {"required": False, "allow_blank": True, "write_only": True},
+            "last_name": {"required": False, "allow_blank": True, "write_only": True},
         }
 
     def validate(self, attrs):
