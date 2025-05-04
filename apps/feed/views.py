@@ -24,6 +24,8 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
     API endpoint that allows feed items to be viewed.
     Filters items to show those from the current user and users they follow.
     Includes like/comment counts and whether the current user liked the item.
+    Supports excluding specific event types via the 'exclude_event_types' query parameter
+    (e.g., ?exclude_event_types=update_recipe,update_rating).
     It's read-only for now.
     """
 
@@ -40,6 +42,13 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
         Efficiently fetches related data.
         """
         user = self.request.user
+
+        # --- Get excluded event types from query params ---
+        excluded_types_str = self.request.query_params.get("exclude_event_types", None)
+        excluded_types = []
+        if excluded_types_str:
+            excluded_types = [item.strip() for item in excluded_types_str.split(",") if item.strip()]
+            # Optional: Validate against FeedItem.EventType.values if needed
 
         followed_user_ids = Follow.objects.filter(follower=user).values_list("followed_id", flat=True)
 
@@ -59,6 +68,10 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Filter: Include items from the current user OR from followed users
         queryset = queryset.filter(Q(user=user) | Q(user_id__in=list(followed_user_ids)))
+
+        # --- Apply event type exclusion ---
+        if excluded_types:
+            queryset = queryset.exclude(event_type__in=excluded_types)
 
         return queryset.order_by("-created_on")
 
