@@ -1,21 +1,47 @@
-from rest_framework import status, viewsets, permissions, serializers
+from django.db.models import Case, IntegerField, Value, When
+from rest_framework import filters, permissions, serializers, status, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend  # TODO check if this is needed
-
-from .models import Recipe, RecipeRating
-from .serializers import (
-    RecipeDetailSerializer,
-    SimpleRecipeSerializer,
-    RecipeRatingSerializer,
-)
-from .services import update_recipe_ratings
-from .permissions import IsAuthorOrReadOnly
 
 from apps.core.views import IsAuthorOrSuperuser
 from apps.feed.models import FeedItem
+
+from .models import Recipe, RecipeRating
+from .permissions import IsAuthorOrReadOnly
+from .serializers import RecipeDetailSerializer, RecipeRatingSerializer, SimpleRecipeSerializer
+from .services import update_recipe_ratings
+
+
+class PrioritizedSearchFilter(filters.SearchFilter):
+    def filter_queryset(self, request, queryset, view):
+        search_terms = self.get_search_terms(request)
+
+        if not search_terms:
+            # If no search term, still respect default ordering
+            return queryset.order_by(*queryset.query.order_by)
+
+        # Base queryset filtered by standard search (icontains)
+        base_queryset = super().filter_queryset(request, queryset, view)
+
+        # Annotate based on exact match (case-insensitive) for the *first* search term
+        first_term = search_terms[0]
+        annotated_queryset = base_queryset.annotate(
+            is_exact_match=Case(
+                When(title__iexact=first_term, then=Value(1)), default=Value(0), output_field=IntegerField()
+            )
+        )
+
+        # Order by exact match first, then the default ordering
+        return annotated_queryset.order_by("-is_exact_match", *queryset.query.order_by)
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 25
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -27,6 +53,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrSuperuser]
+    filter_backends = [PrioritizedSearchFilter]
+    search_fields = ["title"]
+    pagination_class = StandardResultsSetPagination
     # queryset = (
     #     Recipe.objects.select_related("author")
     #     .prefetch_related("recipeingredient_set__ingredient", "reciperating_set")
