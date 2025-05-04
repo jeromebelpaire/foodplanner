@@ -1,18 +1,22 @@
-from rest_framework import viewsets, permissions, status, generics
+from django.db.models import Count, Exists, OuterRef, Q
+from rest_framework import permissions, status, viewsets
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.views import APIView  # Import APIView
-from rest_framework.response import Response  # Import Response
-from rest_framework.exceptions import NotFound  # Import NotFound
+from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from django.db.models import Q, Count, Exists, OuterRef  # Import Count, Exists, OuterRef for annotations
 from apps.core.models import Follow
 
-# Import new models and serializers
-from .models import FeedItem, FeedItemLike, FeedItemComment
-from .serializers import FeedItemSerializer, FeedItemCommentSerializer
-from .permissions import IsOwnerOrReadOnly  # Import custom permission
+from .models import FeedItem, FeedItemComment, FeedItemLike
+from .permissions import IsOwnerOrReadOnly
+from .serializers import FeedItemCommentSerializer, FeedItemSerializer
 
-# Create your views here.
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 25
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
@@ -26,6 +30,7 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = [SessionAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = FeedItemSerializer
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         """
