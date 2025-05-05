@@ -55,6 +55,7 @@ class AuthStatusView(APIView):
                 "username": request.user.username,
                 "is_superuser": request.user.is_superuser,
                 "follower_count": request.user.followers_set.count(),
+                "following_count": request.user.following_set.count(),
             }
         return Response(response_data)
 
@@ -303,3 +304,59 @@ class FollowToggleView(APIView):
             )
         except Follow.DoesNotExist:
             return Response({"detail": "You are not following this user."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FollowersListView(generics.ListAPIView):
+    """
+    API view to list users who are following the authenticated user.
+    Requires authentication.
+    Uses pagination.
+    Returns user data including whether the authenticated user follows them back.
+    """
+
+    serializer_class = UserSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        """Return users who follow the request.user."""
+        request_user = self.request.user
+        # Get the IDs of users who follow the request_user
+        follower_ids = Follow.objects.filter(followed=request_user).values_list("follower_id", flat=True)
+        # Fetch the User objects for these followers
+        queryset = User.objects.filter(pk__in=follower_ids).order_by("username")
+        return queryset
+
+    def get_serializer_context(self):
+        """Pass request context to the serializer for 'is_following'."""
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+
+class FollowingListView(generics.ListAPIView):
+    """
+    API view to list users whom the authenticated user is following.
+    Requires authentication.
+    Uses pagination.
+    Returns user data including whether the authenticated user follows them (always true here).
+    """
+
+    serializer_class = UserSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        """Return users followed by the request.user."""
+        request_user = self.request.user
+        # Get the IDs of users followed by the request_user
+        followed_ids = Follow.objects.filter(follower=request_user).values_list("followed_id", flat=True)
+        # Fetch the User objects for these followed users
+        queryset = User.objects.filter(pk__in=followed_ids).order_by("username")
+        return queryset
+
+    def get_serializer_context(self):
+        """Pass request context to the serializer for 'is_following'."""
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
