@@ -4,6 +4,8 @@ from rest_framework import permissions, status, serializers, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Case, When, Value, IntegerField
 
 # Import models and serializers from core
 from .models import Follow
@@ -52,6 +54,7 @@ class AuthStatusView(APIView):
                 "id": request.user.id,
                 "username": request.user.username,
                 "is_superuser": request.user.is_superuser,
+                "follower_count": request.user.followers_set.count(),
             }
         return Response(response_data)
 
@@ -159,6 +162,16 @@ class SignupView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class StandardResultsSetPagination(PageNumberPagination):
+    """
+    Standard pagination configuration.
+    """
+
+    page_size = 10  # Number of items per page
+    page_size_query_param = "page_size"  # Allow client to override page size
+    max_page_size = 50  # Maximum page size allowed
+
+
 # --- New Views for User Search and Follow/Unfollow ---
 
 
@@ -172,24 +185,67 @@ class UserSearchView(generics.ListAPIView):
 
     serializer_class = UserSearchSerializer
     permission_classes = [permissions.IsAuthenticated]
-    # Add pagination later if needed: pagination_class = ...
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """Filter users based on the 'query' parameter (username)."""
-        queryset = User.objects.all().order_by("username")  # Start with all users
+        """
+        Filter users based on the 'query' parameter (username) for search,
+        or provide suggestions if no query is given.
+        Suggestions prioritize users following the current user, then 'friends of friends'.
+        Excludes the current user and users they already follow.
+        """
+        request_user = self.request.user
         search_query = self.request.query_params.get("query", None)
 
-        if search_query:
-            # Filter case-insensitively on username containing the query
-            queryset = queryset.filter(username__icontains=search_query)
-        else:
-            # Return empty list if no query is provided, or maybe first N users?
-            # For an async select, returning empty without query is common.
-            queryset = User.objects.none()
+        # Users already followed by the request user
+        followed_pks = set(request_user.following_set.values_list("followed_id", flat=True))
 
-        # Exclude the requesting user from the search results
-        if self.request.user.is_authenticated:
-            queryset = queryset.exclude(pk=self.request.user.pk)
+        if search_query:
+            # --- Search Logic ---
+            queryset = (
+                User.objects.filter(username__icontains=search_query).exclude(pk=request_user.pk)  # Exclude self
+                # Optional: exclude already followed users from search results too?
+                # .exclude(pk__in=followed_pks)
+                .order_by("username")
+            )
+        else:
+            # --- Suggestion Logic ---
+            if not request_user.is_authenticated:  # Should not happen due to IsAuthenticated permission
+                return User.objects.none()
+
+            # Tier 1: Users following the request user but not followed back
+            follower_pks = set(request_user.followers_set.values_list("follower_id", flat=True))
+            tier1_pks = follower_pks - followed_pks
+
+            # Tier 2: Users followed by people the request user follows ("friends of friends")
+            people_user_follows_pks = followed_pks  # Use the already fetched set
+            tier2_candidates_pks = set(
+                Follow.objects.filter(follower_id__in=people_user_follows_pks)
+                .exclude(followed_id=request_user.pk)  # Exclude self
+                .exclude(followed_id__in=followed_pks)  # Exclude already followed
+                .exclude(followed_id__in=tier1_pks)  # Exclude tier 1 to avoid duplicates
+                .values_list("followed_id", flat=True)
+            )
+            # No need for further filtering, already excluded above
+
+            # Combine all suggestion PKs
+            all_suggestion_pks = tier1_pks.union(tier2_candidates_pks)
+
+            if not all_suggestion_pks:
+                return User.objects.none()  # No suggestions found
+
+            # Fetch users and annotate for ordering
+            queryset = (
+                User.objects.filter(pk__in=all_suggestion_pks)
+                .annotate(
+                    suggestion_priority=Case(
+                        When(pk__in=tier1_pks, then=Value(1)),  # Higher priority for followers
+                        default=Value(2),  # Lower priority for others
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("suggestion_priority", "username")
+            )  # Order by priority, then username
 
         return queryset
 
