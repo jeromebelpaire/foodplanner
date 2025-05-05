@@ -211,7 +211,7 @@ class UserSearchView(generics.ListAPIView):
             )
         else:
             # --- Suggestion Logic ---
-            if not request_user.is_authenticated:  # Should not happen due to IsAuthenticated permission
+            if not request_user.is_authenticated:
                 return User.objects.none()
 
             # Tier 1: Users following the request user but not followed back
@@ -229,11 +229,15 @@ class UserSearchView(generics.ListAPIView):
             )
             # No need for further filtering, already excluded above
 
+            # Tier 3: Other users (not self, not followed, not in tier 1 or 2)
+            excluded_pks_for_tier3 = followed_pks | tier1_pks | tier2_candidates_pks | {request_user.pk}
+            tier3_pks = set(User.objects.exclude(pk__in=excluded_pks_for_tier3).values_list("pk", flat=True))
+
             # Combine all suggestion PKs
-            all_suggestion_pks = tier1_pks.union(tier2_candidates_pks)
+            all_suggestion_pks = tier1_pks.union(tier2_candidates_pks).union(tier3_pks)
 
             if not all_suggestion_pks:
-                return User.objects.none()  # No suggestions found
+                return User.objects.none()  # No suggestions found (only possible if request_user is the only user)
 
             # Fetch users and annotate for ordering
             queryset = (
@@ -241,7 +245,8 @@ class UserSearchView(generics.ListAPIView):
                 .annotate(
                     suggestion_priority=Case(
                         When(pk__in=tier1_pks, then=Value(1)),  # Higher priority for followers
-                        default=Value(2),  # Lower priority for others
+                        When(pk__in=tier2_candidates_pks, then=Value(2)),  # Medium priority for FoF
+                        default=Value(3),  # Lowest priority for others
                         output_field=IntegerField(),
                     )
                 )
