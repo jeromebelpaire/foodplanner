@@ -6,10 +6,11 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Case, When, Value, IntegerField
+from django.utils import timezone
 
 # Import models and serializers from core
-from .models import Follow
-from .serializers import UserSearchSerializer
+from .models import Follow, UserProfile, TermsOfServiceVersion
+from .serializers import UserSearchSerializer, TermsOfServiceVersionSerializer
 
 User = get_user_model()  # Get the active user model
 
@@ -115,10 +116,18 @@ class LogoutView(APIView):
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
     confirm_password = serializers.CharField(write_only=True, required=True, label="Confirm password")
+    # Temporarily make accept_tos not required and allow None
+    accept_tos = serializers.BooleanField(
+        write_only=True,
+        required=False,  # Temporarily False
+        allow_null=True,  # Allow it to be absent from request
+        default=None,  # Default to None if not provided
+        label="Accept Terms of Service",
+    )
 
     class Meta:
         model = User
-        fields = ("id", "username", "password", "email", "first_name", "last_name", "confirm_password")
+        fields = ("id", "username", "password", "email", "first_name", "last_name", "confirm_password", "accept_tos")
         extra_kwargs = {
             "email": {"required": True, "allow_blank": False},
             "first_name": {"required": False, "allow_blank": True, "write_only": True},
@@ -128,9 +137,18 @@ class UserSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs["password"] != attrs.pop("confirm_password"):
             raise serializers.ValidationError({"password": "Password fields didn't match."})
+        # accept_tos is now handled in its own validator or can be checked here if complex logic needed
         return attrs
 
+    def validate_accept_tos(self, value):
+        """Ensure the ToS checkbox was checked. Temporarily allows None/False."""
+        # if not value: # Temporarily commented out for phased rollout
+        #     raise serializers.ValidationError("You must accept the Terms of Service to register.")
+        return value  # Return whatever value is given (True, False, or None)
+
     def create(self, validated_data):
+        accepted_tos_data = validated_data.pop("accept_tos", None)  # Get accept_tos, default to None
+
         user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data["email"],
@@ -138,6 +156,28 @@ class UserSerializer(serializers.ModelSerializer):
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
         )
+
+        profile_tos_accepted_at = None
+        profile_accepted_tos_version = None
+
+        if accepted_tos_data is True:  # Only record acceptance if explicitly True
+            try:
+                latest_tos = TermsOfServiceVersion.objects.filter(published_at__lte=timezone.now()).latest(
+                    "published_at"
+                )
+                profile_accepted_tos_version = latest_tos
+                profile_tos_accepted_at = timezone.now()
+            except TermsOfServiceVersion.DoesNotExist:
+                # Handle case where no ToS version is published yet
+                # Consider logging this. For now, acceptance can't be recorded if no ToS.
+                latest_tos = None
+                # If ToS MUST be accepted and one MUST exist, this logic would need to be stricter.
+
+        # Create the UserProfile
+        UserProfile.objects.create(
+            user=user, tos_accepted_at=profile_tos_accepted_at, accepted_tos_version=profile_accepted_tos_version
+        )
+
         return user
 
 
@@ -365,3 +405,19 @@ class FollowingListView(generics.ListAPIView):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+
+class LatestTermsOfServiceView(APIView):
+    """
+    Provides the content of the latest published Terms of Service.
+    """
+
+    permission_classes = [permissions.AllowAny]  # ToS should be publicly accessible
+
+    def get(self, request, format=None):
+        try:
+            latest_tos = TermsOfServiceVersion.objects.filter(published_at__lte=timezone.now()).latest("published_at")
+            serializer = TermsOfServiceVersionSerializer(latest_tos)
+            return Response(serializer.data)
+        except TermsOfServiceVersion.DoesNotExist:
+            return Response({"detail": "No published Terms of Service found."}, status=status.HTTP_404_NOT_FOUND)

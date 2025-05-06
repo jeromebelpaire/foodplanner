@@ -10,6 +10,7 @@ from .views import (
     LogoutView,
     SignupView,
     UserSearchView,
+    LatestTermsOfServiceView,
 )
 
 app_name = "core"
@@ -24,4 +25,5 @@ urlpatterns = [
     path("users/<int:pk>/follow/", FollowToggleView.as_view(), name="user-follow-toggle"),
     path("users/followers/", FollowersListView.as_view(), name="user-followers"),
     path("users/following/", FollowingListView.as_view(), name="user-following"),
+    path("tos/latest/", LatestTermsOfServiceView.as_view(), name="tos-latest"),
 ]

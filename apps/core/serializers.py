@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import Follow
+from .models import Follow, TermsOfServiceVersion
 
 User = get_user_model()
 
@@ -28,6 +28,19 @@ class UserSearchSerializer(serializers.ModelSerializer):
             # Check if a Follow relationship exists from request_user to obj
             return Follow.objects.filter(follower=request_user, followed=obj).exists()
         return False
+
+
+class TermsOfServiceVersionSerializer(serializers.ModelSerializer):
+    """Serializer for public display of Terms of Service versions."""
+
+    class Meta:
+        model = TermsOfServiceVersion
+        fields = [
+            "version_number",
+            "content",
+            "published_at",
+        ]
+        read_only_fields = fields  # All fields are read-only for this public endpoint
 
 
 class FollowSerializer(serializers.ModelSerializer):
