@@ -15,25 +15,26 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "0").lower() in ["true", "t", "1"]
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS").split(" ")
 
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(" ")
-CORS_ALLOWED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(" ")
-CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS").lower() in ["true", "t", "1"]
+
+# CORS settings
+ENABLE_CORS = os.getenv("ENABLE_CORS", "0").lower() in ["true", "t", "1"]
+if ENABLE_CORS:
+    CORS_ALLOWED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(" ")
+    CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "0").lower() in ["true", "t", "1"]
+else:
+    CORS_ALLOWED_ORIGINS = []
+    CORS_ALLOW_CREDENTIALS = False
 
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0").lower() in ["true", "t", "1"]
 if SECURE_SSL_REDIRECT:
@@ -67,16 +68,20 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Define base middleware
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
+    # CorsMiddleware goes here conditionally
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if ENABLE_CORS:
+    MIDDLEWARE.insert(2, "corsheaders.middleware.CorsMiddleware")
 
 ROOT_URLCONF = "foodplanner.urls"
 
@@ -140,9 +145,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/4.1/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -152,14 +154,8 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.1/howto/static-files/
-
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -167,19 +163,23 @@ LOGIN_REDIRECT_URL = "/"
 
 
 DEFAULT_FILE_STORAGE = "foodplanner.azure_storage.AzureMediaStorage"
-# STATICFILES_STORAGE = "core.azure_storage.AzureStaticStorage" #TODO
 
 AZURE_ACCOUNT_NAME = os.getenv("AZURE_ACCOUNT_NAME")
 AZURE_ACCOUNT_KEY = os.getenv("AZURE_ACCOUNT_KEY")
 AZURE_CUSTOM_DOMAIN = f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
 
-# STATIC_URL = f"https://{AZURE_CUSTOM_DOMAIN}/static/"
-# STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/media/"
 MEDIA_ROOT = BASE_DIR / "mediafiles"
 
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = True
+# Cookie settings
+if ENABLE_CORS:
+    CSRF_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
+else:
+    CSRF_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
