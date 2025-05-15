@@ -40,7 +40,7 @@ class TermsOfServiceVersionSerializer(serializers.ModelSerializer):
             "content",
             "published_at",
         ]
-        read_only_fields = fields  # All fields are read-only for this public endpoint
+        read_only_fields = fields
 
 
 class FollowSerializer(serializers.ModelSerializer):
@@ -71,12 +71,10 @@ class FollowSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        # Ensure user isn't trying to follow themselves
         follower = self.context["request"].user
         followed = attrs.get("followed")
         if follower == followed:
             raise serializers.ValidationError("Users cannot follow themselves.")
-        # unique_together constraint in the model handles duplicate follows
         return attrs
 
     def create(self, validated_data):

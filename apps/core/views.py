@@ -8,11 +8,10 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Case, When, Value, IntegerField
 from django.utils import timezone
 
-# Import models and serializers from core
 from .models import Follow, UserProfile, TermsOfServiceVersion
 from .serializers import UserSearchSerializer, TermsOfServiceVersionSerializer
 
-User = get_user_model()  # Get the active user model
+User = get_user_model()
 
 
 class IsAuthorOrSuperuser(permissions.BasePermission):
@@ -21,18 +20,16 @@ class IsAuthorOrSuperuser(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        # Read permissions are allowed to any authenticated user
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Write permissions are only allowed to the author or superusers
         return obj.author == request.user or request.user.is_superuser
 
 
 class CsrfTokenView(APIView):
     """Provides the CSRF token (if using SessionAuthentication)."""
 
-    authentication_classes = []  # No auth needed to get CSRF token
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, format=None):
@@ -43,14 +40,12 @@ class CsrfTokenView(APIView):
 class AuthStatusView(APIView):
     """Checks authentication status and returns basic user info if logged in."""
 
-    # Uses default authentication classes defined in settings
-    permission_classes = [permissions.AllowAny]  # Allow anyone to check
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, format=None):
         authenticated = request.user.is_authenticated
         response_data = {"authenticated": authenticated}
         if authenticated:
-            # Return minimal, safe user details
             response_data["user"] = {
                 "id": request.user.id,
                 "username": request.user.username,
@@ -94,7 +89,6 @@ class LoginView(APIView):
             return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-# You should also add a LogoutView
 class LogoutView(APIView):
     """
     API View for user logout (Session Authentication).
@@ -112,13 +106,10 @@ class LogoutView(APIView):
         return response
 
 
-# Serializer for User creation
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
     confirm_password = serializers.CharField(write_only=True, required=True, label="Confirm password")
-    accept_tos = serializers.BooleanField(
-        write_only=True, required=True, label="Accept Terms of Service"  # Changed back to True
-    )
+    accept_tos = serializers.BooleanField(write_only=True, required=True, label="Accept Terms of Service")
 
     class Meta:
         model = User
@@ -159,7 +150,6 @@ class UserSerializer(serializers.ModelSerializer):
             profile_accepted_tos_version = latest_tos
             profile_tos_accepted_at = timezone.now()
         except TermsOfServiceVersion.DoesNotExist:
-            # If ToS acceptance is mandatory and no ToS version is found, this is a server configuration issue.
             raise APIException(
                 detail="We are unable to process your signup at this time due to a configuration issue. Please try again later or contact support if the problem persists.",
                 code="tos_version_missing",
@@ -199,12 +189,9 @@ class StandardResultsSetPagination(PageNumberPagination):
     Standard pagination configuration.
     """
 
-    page_size = 10  # Number of items per page
-    page_size_query_param = "page_size"  # Allow client to override page size
-    max_page_size = 50  # Maximum page size allowed
-
-
-# --- New Views for User Search and Follow/Unfollow ---
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 50
 
 
 class UserSearchView(generics.ListAPIView):
@@ -229,11 +216,9 @@ class UserSearchView(generics.ListAPIView):
         request_user = self.request.user
         search_query = self.request.query_params.get("query", None)
 
-        # Users already followed by the request user
         followed_pks = set(request_user.following_set.values_list("followed_id", flat=True))
 
         if search_query:
-            # --- Search Logic ---
             queryset = (
                 User.objects.filter(username__icontains=search_query).exclude(pk=request_user.pk)  # Exclude self
                 # Optional: exclude already followed users from search results too?
@@ -241,7 +226,6 @@ class UserSearchView(generics.ListAPIView):
                 .order_by("username")
             )
         else:
-            # --- Suggestion Logic ---
             if not request_user.is_authenticated:
                 return User.objects.none()
 
@@ -250,27 +234,24 @@ class UserSearchView(generics.ListAPIView):
             tier1_pks = follower_pks - followed_pks
 
             # Tier 2: Users followed by people the request user follows ("friends of friends")
-            people_user_follows_pks = followed_pks  # Use the already fetched set
+            people_user_follows_pks = followed_pks
             tier2_candidates_pks = set(
                 Follow.objects.filter(follower_id__in=people_user_follows_pks)
-                .exclude(followed_id=request_user.pk)  # Exclude self
-                .exclude(followed_id__in=followed_pks)  # Exclude already followed
-                .exclude(followed_id__in=tier1_pks)  # Exclude tier 1 to avoid duplicates
+                .exclude(followed_id=request_user.pk)
+                .exclude(followed_id__in=followed_pks)
+                .exclude(followed_id__in=tier1_pks)
                 .values_list("followed_id", flat=True)
             )
-            # No need for further filtering, already excluded above
 
             # Tier 3: Other users (not self, not followed, not in tier 1 or 2)
             excluded_pks_for_tier3 = followed_pks | tier1_pks | tier2_candidates_pks | {request_user.pk}
             tier3_pks = set(User.objects.exclude(pk__in=excluded_pks_for_tier3).values_list("pk", flat=True))
 
-            # Combine all suggestion PKs
             all_suggestion_pks = tier1_pks.union(tier2_candidates_pks).union(tier3_pks)
 
             if not all_suggestion_pks:
-                return User.objects.none()  # No suggestions found (only possible if request_user is the only user)
+                return User.objects.none()
 
-            # Fetch users and annotate for ordering
             queryset = (
                 User.objects.filter(pk__in=all_suggestion_pks)
                 .annotate(
@@ -282,7 +263,7 @@ class UserSearchView(generics.ListAPIView):
                     )
                 )
                 .order_by("suggestion_priority", "username")
-            )  # Order by priority, then username
+            )
 
         return queryset
 
@@ -315,11 +296,9 @@ class FollowToggleView(APIView):
         if follower == user_to_follow:
             return Response({"detail": "You cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if already following
         if Follow.objects.filter(follower=follower, followed=user_to_follow).exists():
             return Response({"detail": "You are already following this user."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create the follow relationship
         Follow.objects.create(follower=follower, followed=user_to_follow)
         return Response({"detail": f"Successfully followed {user_to_follow.username}."}, status=status.HTTP_201_CREATED)
 
@@ -357,9 +336,7 @@ class FollowersListView(generics.ListAPIView):
     def get_queryset(self):
         """Return users who follow the request.user."""
         request_user = self.request.user
-        # Get the IDs of users who follow the request_user
         follower_ids = Follow.objects.filter(followed=request_user).values_list("follower_id", flat=True)
-        # Fetch the User objects for these followers
         queryset = User.objects.filter(pk__in=follower_ids).order_by("username")
         return queryset
 
@@ -385,9 +362,7 @@ class FollowingListView(generics.ListAPIView):
     def get_queryset(self):
         """Return users followed by the request.user."""
         request_user = self.request.user
-        # Get the IDs of users followed by the request_user
         followed_ids = Follow.objects.filter(follower=request_user).values_list("followed_id", flat=True)
-        # Fetch the User objects for these followed users
         queryset = User.objects.filter(pk__in=followed_ids).order_by("username")
         return queryset
 
@@ -403,7 +378,7 @@ class LatestTermsOfServiceView(APIView):
     Provides the content of the latest published Terms of Service.
     """
 
-    permission_classes = [permissions.AllowAny]  # ToS should be publicly accessible
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, format=None):
         try:

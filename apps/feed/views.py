@@ -43,7 +43,6 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
         """
         user = self.request.user
 
-        # --- Get excluded event types from query params ---
         excluded_types_str = self.request.query_params.get("exclude_event_types", None)
         excluded_types = []
         if excluded_types_str:
@@ -52,10 +51,9 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
 
         followed_user_ids = Follow.objects.filter(follower=user).values_list("followed_id", flat=True)
 
-        # Annotate with like count, comment count, and if the current user has liked the item
         queryset = FeedItem.objects.annotate(
             like_count=Count("likes", distinct=True),
-            comment_count=Count("comments", distinct=True),  # Add comment count annotation
+            comment_count=Count("comments", distinct=True),
             is_liked_by_user=Exists(FeedItemLike.objects.filter(feed_item=OuterRef("pk"), user=user)),
         ).select_related(
             "user",
@@ -63,20 +61,13 @@ class FeedItemViewSet(viewsets.ReadOnlyModelViewSet):
             "rating__author",
             "rating__recipe",
         )
-        # Uncomment and add 'comments__user' if nesting comments in serializer
-        # .prefetch_related('comments__user')
 
-        # Filter: Include items from the current user OR from followed users
         queryset = queryset.filter(Q(user=user) | Q(user_id__in=list(followed_user_ids)))
 
-        # --- Apply event type exclusion ---
         if excluded_types:
             queryset = queryset.exclude(event_type__in=excluded_types)
 
         return queryset.order_by("-created_on")
-
-
-# --- Like Toggle View ---
 
 
 class FeedItemLikeToggleView(APIView):
@@ -100,10 +91,8 @@ class FeedItemLikeToggleView(APIView):
         like, created = FeedItemLike.objects.get_or_create(user=request.user, feed_item=feed_item)
 
         if created:
-            # Optionally return the updated like count or just success
             return Response({"detail": "Feed item liked."}, status=status.HTTP_201_CREATED)
         else:
-            # Already liked
             return Response({"detail": "You have already liked this item."}, status=status.HTTP_200_OK)
 
     def delete(self, request, pk, format=None):
@@ -116,13 +105,9 @@ class FeedItemLikeToggleView(APIView):
         try:
             like_instance = FeedItemLike.objects.get(user=request.user, feed_item=feed_item)
             like_instance.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)  # Standard success for DELETE
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except FeedItemLike.DoesNotExist:
-            # Can return 404 or 400 if they try to unlike something not liked
             raise NotFound("Like not found.")
-
-
-# --- Comment ViewSet ---
 
 
 class FeedItemCommentViewSet(viewsets.ModelViewSet):
@@ -133,7 +118,7 @@ class FeedItemCommentViewSet(viewsets.ModelViewSet):
 
     serializer_class = FeedItemCommentSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]  # Allow read, require ownership for write
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         """
@@ -143,28 +128,20 @@ class FeedItemCommentViewSet(viewsets.ModelViewSet):
         Otherwise (detail view via /comments/pk/), return all comments,
         letting the default get_object handle filtering by pk.
         """
-        queryset = FeedItemComment.objects.select_related("user")  # Base queryset
+        queryset = FeedItemComment.objects.select_related("user")
 
         feed_item_pk = self.kwargs.get("feed_item_pk")
         if feed_item_pk:
-            # If accessed via nested URL (e.g., for list/create), filter by feed item.
             queryset = queryset.filter(feed_item_id=feed_item_pk)
-        # Else: If accessed via /comments/pk/ (detail view),
-        # we don't filter by feed_item here. The default get_object
-        # will filter the base queryset using the comment's 'pk' from kwargs.
 
         return queryset
 
     def perform_create(self, serializer):
         """Automatically set the comment author and associate with the feed item."""
         # This action is only hit via the nested URL which guarantees feed_item_pk
-        feed_item_pk = self.kwargs["feed_item_pk"]  # Can access directly now
+        feed_item_pk = self.kwargs["feed_item_pk"]
         try:
             feed_item = FeedItem.objects.get(pk=feed_item_pk)
         except FeedItem.DoesNotExist:
-            # Although the URL pattern ensures feed_item_pk is an int,
-            # the FeedItem itself might not exist (e.g., deleted between requests)
             raise NotFound("Feed item not found.")
         serializer.save(user=self.request.user, feed_item=feed_item)
-
-    # Default methods handle retrieve, update, partial_update, destroy with appropriate permissions

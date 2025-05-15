@@ -20,7 +20,6 @@ class PrioritizedSearchFilter(filters.SearchFilter):
         search_terms = self.get_search_terms(request)
 
         if not search_terms:
-            # If no search term, still respect default ordering
             return queryset.order_by(*queryset.query.order_by)
 
         # Base queryset filtered by standard search (icontains)
@@ -34,7 +33,6 @@ class PrioritizedSearchFilter(filters.SearchFilter):
             )
         )
 
-        # Order by exact match first, then the default ordering
         return annotated_queryset.order_by("-is_exact_match", *queryset.query.order_by)
 
 
@@ -56,13 +54,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filter_backends = [PrioritizedSearchFilter]
     search_fields = ["title"]
     pagination_class = StandardResultsSetPagination
-    # queryset = (
-    #     Recipe.objects.select_related("author")
-    #     .prefetch_related("recipeingredient_set__ingredient", "reciperating_set")
-    #     .all()
-    # )
-    # lookup_field = "slug"
-    serializer_class = SimpleRecipeSerializer  # Default, overridden by get_serializer_class
+    serializer_class = SimpleRecipeSerializer
 
     def get_queryset(self):
         """
@@ -74,17 +66,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
             "recipeingredient_set__ingredient", "reciperating_set"
         )
 
-        # Filter for 'mine' parameter if user is authenticated
         show_mine = self.request.query_params.get("mine", "").lower() == "true"
         if show_mine and user.is_authenticated:
             queryset = base_queryset.filter(author=user)
         else:
-            # Optionally, you might want to restrict viewing *all* recipes
-            # if the user isn't authenticated, depending on your app's logic.
-            # For now, returning all if 'mine' isn't specified or user isn't logged in.
             queryset = base_queryset.all()
 
-        return queryset.order_by("-created_on")  # Apply ordering at the end
+        return queryset.order_by("-created_on")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -97,9 +85,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return context
 
     def perform_create(self, serializer):
-        # Save the recipe first to get an instance
         recipe_instance = serializer.save(author=self.request.user)
-        # Create a corresponding FeedItem
         FeedItem.objects.create(
             user=recipe_instance.author,
             event_type=FeedItem.EventType.NEW_RECIPE,
@@ -108,7 +94,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         recipe_instance = serializer.save()
-        # Similar to ratings: delete old feed item, create new
         FeedItem.objects.filter(recipe=recipe_instance, event_type=FeedItem.EventType.NEW_RECIPE).delete()
         FeedItem.objects.create(
             user=recipe_instance.author,
@@ -117,7 +102,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
-        # Delete related feed items before deleting the recipe
         FeedItem.objects.filter(recipe=instance).delete()
         instance.delete()
 
@@ -150,7 +134,6 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
 
     serializer_class = RecipeRatingSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
-    # filter_backends = [DjangoFilterBackend]
     filterset_fields = ["recipe"]
 
     def get_queryset(self):
@@ -173,11 +156,8 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
         if RecipeRating.objects.filter(recipe=recipe, author=self.request.user).exists():
             raise serializers.ValidationError("You have already rated this recipe.")
 
-        # Save the rating first to get an instance
         rating_instance = serializer.save(author=self.request.user)
-        # Update recipe's average rating
         update_recipe_ratings(rating_instance.recipe)
-        # Create a corresponding FeedItem
         FeedItem.objects.create(
             user=rating_instance.author,
             event_type=FeedItem.EventType.NEW_RATING,
@@ -188,7 +168,6 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.save()
         update_recipe_ratings(instance.recipe)
-        # Delete the related feed item
         FeedItem.objects.filter(rating=instance).delete()
         FeedItem.objects.create(
             user=instance.author,
@@ -201,5 +180,4 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
         recipe = instance.recipe
         instance.delete()
         update_recipe_ratings(recipe)
-        # Delete the related feed item
         FeedItem.objects.filter(rating=instance).delete()

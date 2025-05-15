@@ -2,12 +2,11 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth import get_user_model
 
-from .models import Follow, TermsOfServiceVersion, UserProfile
+from .models import TermsOfServiceVersion, UserProfile
 
 User = get_user_model()
 
 
-# Inline admin for UserProfile to show on User detail page
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
@@ -18,7 +17,6 @@ class UserProfileInline(admin.StackedInline):
     readonly_fields = ("tos_accepted_at",)
 
 
-# Define a new User admin
 class UserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
     list_display = ("username", "email", "first_name", "last_name", "is_staff", "get_tos_accepted_version")
@@ -46,14 +44,9 @@ class TermsOfServiceVersionAdmin(admin.ModelAdmin):
     search_fields = ("version_number", "content")
     list_filter = ("published_at",)
     ordering = ("-published_at",)
-    # Consider adding fields/readonly_fields if needed
     fields = ("version_number", "published_at", "content")
 
 
 # Re-register UserAdmin (unregister the default first)
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
-
-# Optionally register Follow and UserProfile directly if needed for direct management
-# admin.site.register(Follow)
-# admin.site.register(UserProfile) # Usually managed via User inline

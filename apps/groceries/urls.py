@@ -4,7 +4,6 @@ from . import views
 
 router = DefaultRouter()
 router.register(r"lists", views.GroceryListViewSet, basename="grocerylist")
-# Register viewsets that are typically filtered by query params
 router.register(r"planned-recipes", views.PlannedRecipeViewSet, basename="plannedrecipe")
 router.register(r"planned-extras", views.PlannedExtraViewSet, basename="plannedextra")
 router.register(r"items", views.GroceryListItemViewSet, basename="grocerylistitem")

@@ -18,9 +18,7 @@ class FeedItem(models.Model):
         choices=EventType.choices,
     )
     created_on = models.DateTimeField(auto_now_add=True)
-    # Null if event_type is not NEW_RECIPE
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, null=True, blank=True)
-    # Null if event_type is not NEW_RATING
     rating = models.ForeignKey(RecipeRating, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
@@ -38,7 +36,7 @@ class FeedItemLike(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("user", "feed_item")  # User can only like an item once
+        unique_together = ("user", "feed_item")
         ordering = ["-created_at"]
         verbose_name = "Feed Item Like"
         verbose_name_plural = "Feed Item Likes"
@@ -58,7 +56,7 @@ class FeedItemComment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["created_at"]  # Show oldest comments first
+        ordering = ["created_at"]
         verbose_name = "Feed Item Comment"
         verbose_name_plural = "Feed Item Comments"
 

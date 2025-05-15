@@ -30,7 +30,6 @@ class Follow(models.Model):
         verbose_name_plural = "Follow Relationships"
 
     def __str__(self):
-        # Use username if available, otherwise fallback to ID
         follower_repr = getattr(self.follower, "username", f"User {self.follower_id}")
         followed_repr = getattr(self.followed, "username", f"User {self.followed_id}")
         return f"{follower_repr} follows {followed_repr}"
@@ -45,7 +44,7 @@ class TermsOfServiceVersion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-published_at"]  # Default ordering shows latest published first
+        ordering = ["-published_at"]
         verbose_name = "Terms of Service Version"
         verbose_name_plural = "Terms of Service Versions"
 
@@ -66,8 +65,6 @@ class UserProfile(models.Model):
         related_name="accepted_by_profiles",
         help_text="The specific version of ToS accepted by the user.",
     )
-
-    # Add other profile fields here if needed in the future (e.g., avatar, bio)
 
     def __str__(self):
         username = getattr(self.user, "username", f"User {self.user_id}")

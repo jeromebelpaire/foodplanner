@@ -4,13 +4,13 @@ from .models import Recipe, RecipeIngredient, RecipeRating
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
-    extra = 1  # Number of extra forms to display
+    extra = 1
     autocomplete_fields = ["ingredient"]
 
 
 class RecipeAdmin(admin.ModelAdmin):
     inlines = [
-        RecipeIngredientInline,  # Use the new inline based on the intermediary model
+        RecipeIngredientInline,
     ]
     list_display = ("title", "author", "created_on", "updated_on")
     search_fields = ["title", "content"]

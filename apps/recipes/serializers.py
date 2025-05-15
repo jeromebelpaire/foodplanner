@@ -131,11 +131,9 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         if remove_image and instance.image:
             instance.image.delete(save=False)
             validated_data["image"] = None
-        # let the parent handle simple fields & slug
         ingredients = validated_data.pop("recipeingredient_set", None)
         instance = super().update(instance, validated_data)
         if ingredients is not None:
-            # replace all ingredients in one shot
             instance.recipeingredient_set.all().delete()
             for item in ingredients:
                 RecipeIngredient.objects.create(recipe=instance, **item)

@@ -23,7 +23,7 @@ class Recipe(models.Model):
 
 
 class RecipeIngredient(models.Model):
-    quantity = models.FloatField()  # quantity for 1 person
+    quantity = models.FloatField()
     ingredient = models.ForeignKey("ingredients.Ingredient", on_delete=models.PROTECT)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     unit = models.ForeignKey("ingredients.IngredientUnit", on_delete=models.PROTECT)

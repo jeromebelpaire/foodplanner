@@ -13,7 +13,6 @@ class PrioritizedSearchFilter(filters.SearchFilter):
         search_terms = self.get_search_terms(request)
 
         if not search_terms:
-            # If no search term, still respect priority and default ordering
             return queryset.order_by("-priority", *queryset.query.order_by)
 
         # Base queryset filtered by standard search (icontains)
@@ -27,8 +26,6 @@ class PrioritizedSearchFilter(filters.SearchFilter):
             )
         )
 
-        # Order by exact match first, then priority, then the default ordering
-        # Note: queryset.query.order_by contains the default ordering ('name')
         return annotated_queryset.order_by("-is_exact_match", "-priority", *queryset.query.order_by)
 
 
@@ -48,12 +45,8 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = StandardResultsSetPagination
-    # Use the custom filter backend
     filter_backends = [PrioritizedSearchFilter]
     search_fields = ["name"]
-
-    # If read-only is strictly required:
-    # http_method_names = ['get', 'head', 'options']
 
 
 class IngredientUnitViewSet(viewsets.ReadOnlyModelViewSet):
